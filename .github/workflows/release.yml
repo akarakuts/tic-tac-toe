@@ -1,0 +1,55 @@
+# EN: On annotated/lightweight tag push — Release build (unsigned), zip tic-tac-toe.app, attach to GitHub Release.
+# RU: При push тега — сборка Release без подписи, архив tic-tac-toe.app, загрузка в GitHub Release.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish-macos-app:
+    name: Build & attach macOS .app (zip)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Build Release (no code signing)
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -scheme "tic-tac-toe" \
+            -project "tic-tac-toe.xcodeproj" \
+            -destination "platform=macOS" \
+            -configuration Release \
+            -derivedDataPath "${{ github.workspace }}/build" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            build
+
+      - name: Zip application bundle
+        run: |
+          set -euo pipefail
+          APP="${{ github.workspace }}/build/Build/Products/Release/tic-tac-toe.app"
+          test -d "$APP"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" \
+            "${{ github.workspace }}/tic-tac-toe-${{ github.ref_name }}-macOS.zip"
+
+      - name: Create GitHub Release and upload artifact
+        uses: softprops/action-gh-release@v3
+        with:
+          files: tic-tac-toe-${{ github.ref_name }}-macOS.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: true

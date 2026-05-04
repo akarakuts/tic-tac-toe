@@ -1,0 +1,83 @@
+# Последовательный CI: сначала CodeQL (уязвимости), затем сборка и юнит-тесты Xcode.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vulnerability-scan:
+    name: CodeQL — Swift
+    runs-on: macos-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: swift
+          build-mode: manual
+
+      - name: Build for analysis
+        run: |
+          xcodebuild \
+            -scheme "tic-tac-toe" \
+            -project "tic-tac-toe.xcodeproj" \
+            -destination 'platform=macOS' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:swift"
+
+  build-and-test:
+    name: Xcode — build & tests
+    runs-on: macos-latest
+    needs: vulnerability-scan
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Build
+        run: |
+          xcodebuild \
+            -scheme "tic-tac-toe" \
+            -project "tic-tac-toe.xcodeproj" \
+            -destination 'platform=macOS' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Unit tests
+        run: |
+          xcodebuild \
+            -scheme "tic-tac-toe" \
+            -project "tic-tac-toe.xcodeproj" \
+            -destination 'platform=macOS' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            -only-testing:tic-tac-toeTests \
+            test
