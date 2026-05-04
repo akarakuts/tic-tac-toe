@@ -1,5 +1,5 @@
-# EN: On annotated/lightweight tag push — Release build (unsigned), zip tic-tac-toe.app, attach to GitHub Release.
-# RU: При push тега — сборка Release без подписи, архив tic-tac-toe.app, загрузка в GitHub Release.
+# EN: On tag push — Release build (unsigned), DMG with .app + Applications link, GitHub Release with auto notes.
+# RU: При push тега — Release без подписи, DMG с приложением и ярлыком Applications, GitHub Release с автозаметками.
 
 name: Release
 
@@ -16,8 +16,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  publish-macos-app:
-    name: Build & attach macOS .app (zip)
+  publish-macos-dmg:
+    name: Build macOS .app & DMG, publish Release
     runs-on: macos-latest
 
     steps:
@@ -39,17 +39,30 @@ jobs:
             DEVELOPMENT_TEAM="" \
             build
 
-      - name: Zip application bundle
+      - name: Create DMG (UDZO)
         run: |
           set -euo pipefail
           APP="${{ github.workspace }}/build/Build/Products/Release/tic-tac-toe.app"
           test -d "$APP"
-          ditto -c -k --sequesterRsrc --keepParent "$APP" \
-            "${{ github.workspace }}/tic-tac-toe-${{ github.ref_name }}-macOS.zip"
+          STAGE="${{ github.workspace }}/dmg_stage"
+          OUT="${{ github.workspace }}/tic-tac-toe-${{ github.ref_name }}-macOS.dmg"
+          rm -rf "$STAGE" "$OUT"
+          mkdir -p "$STAGE"
+          cp -R "$APP" "$STAGE/"
+          ln -sf /Applications "$STAGE/Applications"
+          hdiutil create \
+            -volname "tic-tac-toe ${{ github.ref_name }}" \
+            -srcfolder "$STAGE" \
+            -ov \
+            -format UDZO \
+            "$OUT"
+          rm -rf "$STAGE"
+          test -f "$OUT"
+          ls -lh "$OUT"
 
-      - name: Create GitHub Release and upload artifact
+      - name: Create GitHub Release and upload DMG
         uses: softprops/action-gh-release@v3
         with:
-          files: tic-tac-toe-${{ github.ref_name }}-macOS.zip
+          files: tic-tac-toe-${{ github.ref_name }}-macOS.dmg
           generate_release_notes: true
           fail_on_unmatched_files: true

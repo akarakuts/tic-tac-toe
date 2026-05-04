@@ -67,4 +67,4 @@ xcodebuild -scheme "tic-tac-toe" -destination 'platform=macOS' -only-testing:tic
 
 ## Релизы и установка из GitHub
 
-При пуше **тега** GitHub Actions собирает конфигурацию **Release** и прикладывает архив **`tic-tac-toe-<тег>-macOS.zip`** с приложением `tic-tac-toe.app` к [Release](https://github.com/akarakuts/tic-tac-toe/releases). Сборка без подписи разработчика: при первом запуске может потребоваться открыть через контекстное меню («Открыть»).
+При пуше **тега** GitHub Actions собирает конфигурацию **Release**, создаёт [Release](https://github.com/akarakuts/tic-tac-toe/releases) с автогенерацией заметок и прикладывает образ **`tic-tac-toe-<тег>-macOS.dmg`** (внутри — `tic-tac-toe.app` и ярлык **Applications**). Сборка без подписи разработчика: при первом запуске может потребоваться открыть через контекстное меню («Открыть»).

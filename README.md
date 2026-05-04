@@ -66,3 +66,7 @@ Core rules are covered in `GameModel` tests; AI behaviour (including non–3×3 
 This program is free software: you can redistribute it and/or modify it under the terms of the **GNU General Public License** as published by the Free Software Foundation, either **version 3** of the License, or (at your option) any later version.
 
 See the [`LICENSE`](LICENSE) file for the complete GPLv3 text.
+
+## Releases
+
+Pushing a **version tag** triggers GitHub Actions: a **Release** is created (with auto-generated notes), and a **`tic-tac-toe-<tag>-macOS.dmg`** is attached — open the DMG, drag **tic-tac-toe.app** to **Applications**. The build is **unsigned**; on first launch you may need **Open** from the context menu in Finder.
