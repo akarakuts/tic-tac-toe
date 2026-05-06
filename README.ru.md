@@ -28,7 +28,7 @@ cd tic-tac-toe
 - **Статистика** — строка внизу панели: **П–П–Н** против ИИ, **текущая серия** и **лучшая серия**; обновляется по завершении раунда против ИИ. Хранится вместе с прогрессом в **UserDefaults**.
 - **Звук** — необязательные звуки хода / победы / ошибки (`GameSoundFX`); переключатель **звук вкл./выкл.** сохраняется.
 - **Вёрстка** — элементы управления в **левой колонке** (подписи над группами пилюль); **сетка** занимает оставшееся место. Панель и HUD масштабируются вместе с окном, а легенда условий разблокировки тем находится **под игровым полем**.
-- **Локализация** — строки в **`Localizable.xcstrings`** (String Catalog): **40 идентификаторов локали** в духе типичных настроек macOS (включая региональные варианты вроде `en-GB`, `es-419`, `fr-CA`). Исходные формулировки правятся в **`tic-tac-toe/Scripts/write_bundle.py`** и **`bundle_strings.json`**, каталог пересобирается скриптами ниже; активный язык следует **системным настройкам**.
+- **Локализация** — строки в **`Localizable.xcstrings`** (String Catalog): **40 идентификаторов локали** в духе типичных настроек macOS (включая региональные варианты вроде `en-GB`, `es-419`, `fr-CA`). Активный язык следует **системным настройкам**.
 - **Оформление** — анимация ходов, подсветка выигрышной линии, лёгкая обратная связь при ничьей и исходе партии.
 
 ## Требования
@@ -48,15 +48,9 @@ cd tic-tac-toe
 xcodebuild -scheme "tic-tac-toe" -destination 'platform=macOS' build
 ```
 
-## Пересборка локализованных строк
+## Процесс локализации
 
-После правок переводов в `tic-tac-toe/Scripts/write_bundle.py` (или в сгенерированном `bundle_strings.json`) обновите каталог строк из каталога **Scripts**:
-
-```bash
-cd tic-tac-toe/Scripts
-python3 write_bundle.py          # обновляет bundle_strings.json из write_bundle.py
-python3 generate_localizable.py  # записывает ../Localizable.xcstrings
-```
+Локализация ведётся напрямую в Xcode через String Catalog: `tic-tac-toe/Localizable.xcstrings`.
 
 ## Тесты
 
@@ -80,10 +74,7 @@ xcodebuild -scheme "tic-tac-toe" -destination 'platform=macOS' -only-testing:tic
 | `tic-tac-toe/GameSoundFX.swift` | Звуковые эффекты интерфейса |
 | `tic-tac-toe/ViewController.swift` | Хостинг сцены в `SKView`, размеры и режим масштаба |
 | `tic-tac-toe/L10n.swift` | Доступ к локализованным строкам |
-| `tic-tac-toe/Localizable.xcstrings` | String Catalog (генерируется; см. Scripts) |
-| `tic-tac-toe/Scripts/write_bundle.py` | Редактирование переводов → `bundle_strings.json` |
-| `tic-tac-toe/Scripts/generate_localizable.py` | Сборка `Localizable.xcstrings` из набора строк |
-| `tic-tac-toe/Scripts/strings_bundle.py` | Загрузка `bundle_strings.json` для генератора |
+| `tic-tac-toe/Localizable.xcstrings` | String Catalog |
 
 ## Лицензия
 

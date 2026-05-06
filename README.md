@@ -28,7 +28,7 @@ A native **macOS** tic-tac-toe (n-in-a-row on a square grid) built with **Sprite
 - **Statistics** — footer line with **W–L–D** vs AI, **current streak**, and **best streak**; updated when a vs-AI round ends. Stored with other progress in **UserDefaults**.
 - **Sound** — optional move / win / error feedback (`GameSoundFX`); **Sound on/off** toggle is persisted.
 - **Layout** — controls live in a **left column** (labels above pill groups); the **grid** uses the remaining area. HUD and the left panel scale with the window, and the theme unlock legend sits **under the board**.
-- **Localization** — UI strings live in **`Localizable.xcstrings`** (String Catalog): **40 locale identifiers** aligned with typical macOS language choices (including regional variants such as `en-GB`, `es-419`, `fr-CA`). Source rows are edited in **`tic-tac-toe/Scripts/write_bundle.py`** / **`bundle_strings.json`** and regenerated into the catalog with the scripts below; the running app follows the **system language**.
+- **Localization** — UI strings live in **`Localizable.xcstrings`** (String Catalog): **40 locale identifiers** aligned with typical macOS language choices (including regional variants such as `en-GB`, `es-419`, `fr-CA`). The running app follows the **system language**.
 - **Polish** — Animated marks, highlighted winning line, light feedback on draws and outcomes.
 
 ## Requirements
@@ -48,15 +48,9 @@ Command-line build:
 xcodebuild -scheme "tic-tac-toe" -destination 'platform=macOS' build
 ```
 
-## Regenerating localized strings
+## Localization workflow
 
-After editing translations in `tic-tac-toe/Scripts/write_bundle.py` (or the generated `bundle_strings.json`), refresh the String Catalog from the **Scripts** directory:
-
-```bash
-cd tic-tac-toe/Scripts
-python3 write_bundle.py          # refreshes bundle_strings.json from write_bundle.py
-python3 generate_localizable.py  # writes ../Localizable.xcstrings
-```
+Localization is maintained directly in Xcode via the String Catalog: `tic-tac-toe/Localizable.xcstrings`.
 
 ## Testing
 
@@ -80,10 +74,7 @@ Core rules are covered in `GameModel` tests; AI behaviour (including non–3×3 
 | `tic-tac-toe/GameSoundFX.swift` | Optional AVFoundation UI sounds |
 | `tic-tac-toe/ViewController.swift` | `SKView` hosting the scene, sizing / scale mode |
 | `tic-tac-toe/L10n.swift` | Localized string accessors |
-| `tic-tac-toe/Localizable.xcstrings` | String Catalog (generated; see Scripts) |
-| `tic-tac-toe/Scripts/write_bundle.py` | Authoring translations → `bundle_strings.json` |
-| `tic-tac-toe/Scripts/generate_localizable.py` | Builds `Localizable.xcstrings` from the bundle |
-| `tic-tac-toe/Scripts/strings_bundle.py` | Loads `bundle_strings.json` for the generator |
+| `tic-tac-toe/Localizable.xcstrings` | String Catalog |
 
 ## License
 
