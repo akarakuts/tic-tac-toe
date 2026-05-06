@@ -86,7 +86,7 @@ struct GameProgress: Codable, Equatable, Sendable {
 
     mutating func applyVsAIOutcome(humanWon: Bool?) {
         switch humanWon {
-        case true:
+        case .some(true):
             winsVsAI += 1
             currentWinStreak += 1
             bestWinStreak = max(bestWinStreak, currentWinStreak)
@@ -99,10 +99,10 @@ struct GameProgress: Codable, Equatable, Sendable {
             if bestWinStreak >= 3 {
                 unlockedThemes.insert(.ember)
             }
-        case false:
+        case .some(false):
             lossesVsAI += 1
             currentWinStreak = 0
-        case nil:
+        case .none:
             drawsVsAI += 1
             currentWinStreak = 0
         }
