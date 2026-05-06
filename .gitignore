@@ -44,3 +44,7 @@ Thumbs.db
 
 # Локальные настройки IDE (не коммитить)
 .cursor/
+
+# Python caches
+__pycache__/
+*.pyc
