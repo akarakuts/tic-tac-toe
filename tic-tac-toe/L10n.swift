@@ -1,7 +1,7 @@
 import Foundation
 
-// EN: Typed accessors for String Catalog keys — UI follows the system locale (EN/RU in Localizable.xcstrings).
-// RU: Типизированный доступ к ключам String Catalog — интерфейс следует языку системы (EN/RU в Localizable.xcstrings).
+// EN: Typed accessors for String Catalog keys — UI follows the system locale (see Localizable.xcstrings).
+// RU: Типизированный доступ к ключам String Catalog — интерфейс следует языку системы (см. Localizable.xcstrings).
 
 enum L10n {
     static var newGame: String { String(localized: "game.button.new_game") }
