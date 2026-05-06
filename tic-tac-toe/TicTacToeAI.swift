@@ -10,23 +10,33 @@ enum TicTacToeAI: Sendable {
 
     /// EN: Best reply for `aiPlayer` from `state`, or nil if not AI turn or game over.
     /// RU: Лучший ответ для `aiPlayer` из позиции `state`, или nil если не ход ИИ или партия окончена.
-    static func bestMove(for aiPlayer: Player, in state: GameModel) -> (row: Int, col: Int)? {
+    static func bestMove(for aiPlayer: Player, in state: GameModel, difficulty: AIDifficulty = .hard) -> (row: Int, col: Int)? {
         guard state.outcome() == .inProgress else { return nil }
         guard state.currentPlayer == aiPlayer else { return nil }
 
-        // EN: One-ply tactics before expensive search / RU: Одноходовые тактики перед тяжёлым перебором
+        // EN: One-ply winning capture — always take / RU: Взятие победы в один ход — всегда брать.
         if let win = immediateWinningMove(ai: aiPlayer, in: state) {
             return win
         }
-        if let block = immediateBlockMove(ai: aiPlayer, in: state) {
+
+        // EN: Easy may skip mandatory blocks so beginners find traps — Medium/Hard always block.
+        /// RU: На лёгком ИИ иногда не блокирует очевидную угрозу; средний/сложный всегда блокируют.
+        let blockProbability: Double = switch difficulty {
+        case .easy: 0.67
+        case .medium, .hard: 1
+        }
+        if Double.random(in: 0...1) < blockProbability, let block = immediateBlockMove(ai: aiPlayer, in: state) {
             return block
         }
 
-        let plyBudget = searchPliesRemaining(for: state)
+        // EN: Easy frequently plays random empty squares before lookahead / РУ: Лёгкий часто ходит наугад.
+        if difficulty == .easy, Double.random(in: 0...1) < 0.44 {
+            return allEmptyCells(state: state).randomElement()
+        }
 
-        var best: (row: Int, col: Int)?
-        var bestScore = Int.min
+        let plyBudget = cappedSearchPlies(for: state, difficulty: difficulty)
 
+        var scored: [(row: Int, col: Int, score: Int)] = []
         for (row, col) in orderedEmptyCells(state: state) {
             var next = state
             guard (try? next.play(at: row, col: col)) != nil else { continue }
@@ -40,17 +50,48 @@ enum TicTacToeAI: Sendable {
                 depth: 1,
                 plyRemaining: plyBudget - 1
             )
-            if score > bestScore {
-                bestScore = score
-                best = (row, col)
+            scored.append((row, col, score))
+        }
+
+        guard let bestScore = scored.map(\.score).max() else {
+            return allEmptyCells(state: state).randomElement()
+        }
+
+        // EN: Medium occasionally picks a near-best move so lines stay unpredictable / RU: Средний иногда выбирает почти лучший ход.
+        if difficulty == .medium, Double.random(in: 0...1) < 0.28 {
+            let slack = 320
+            let pool = scored.filter { $0.score >= bestScore - slack }
+            if let pick = pool.randomElement() {
+                return (pick.row, pick.col)
             }
         }
-        return best
+
+        return scored.first { $0.score == bestScore }.map { ($0.row, $0.col) }
     }
 
-    /// EN: Full-depth search only on 3×3; larger boards need a ply cap or minimax never finishes.
-    /// RU: Полный перебор только на 3×3; на больших полях нужен лимит полуходов, иначе минимакс не завершится.
-    private static func searchPliesRemaining(for state: GameModel) -> Int {
+    /// EN: Full-depth search only on 3×3 at Hard; Easy/Medium cap lookahead on every board size.
+    /// RU: Полная глубина на 3×3 только у «Сложно»; «Легко»/«Средне» ограничивают перебор на любых полях.
+    private static func cappedSearchPlies(for state: GameModel, difficulty: AIDifficulty) -> Int {
+        let base = baseSearchPliesRemaining(for: state)
+        switch difficulty {
+        case .hard:
+            return base
+        case .medium:
+            if state.boardSize == 3 {
+                return min(base, 20)
+            }
+            return min(base, max(6, base / 2 + 4))
+        case .easy:
+            if state.boardSize == 3 {
+                return min(base, 7)
+            }
+            return min(base, max(4, base / 3 + 2))
+        }
+    }
+
+    /// EN: Upper bound on remaining plies before difficulty trims it — enough for full 3×3 solve at Hard.
+    /// RU: Верхняя граница полуходов до урезания сложностью — достаточно для полного решения 3×3 у «Сложно».
+    private static func baseSearchPliesRemaining(for state: GameModel) -> Int {
         switch state.boardSize {
         case 3:
             return 64
@@ -61,6 +102,19 @@ enum TicTacToeAI: Sendable {
         default:
             return 4
         }
+    }
+
+    private static func allEmptyCells(state: GameModel) -> [(Int, Int)] {
+        let n = state.boardSize
+        var cells: [(Int, Int)] = []
+        for row in 0..<n {
+            for col in 0..<n {
+                if state.cell(at: row, col: col) == .empty {
+                    cells.append((row, col))
+                }
+            }
+        }
+        return cells
     }
 
     /// EN: Empty cell where AI moving now yields immediate win.

@@ -27,4 +27,30 @@ enum L10n {
 
     static var settingsBoard: String { String(localized: "game.settings.board") }
     static var settingsWinLine: String { String(localized: "game.settings.win_line") }
+
+    static var settingsAiDifficulty: String { String(localized: "game.settings.ai_difficulty") }
+    static var aiEasy: String { String(localized: "game.ai.easy") }
+    static var aiMedium: String { String(localized: "game.ai.medium") }
+    static var aiHard: String { String(localized: "game.ai.hard") }
+
+    static var settingsTheme: String { String(localized: "game.settings.theme") }
+    static var themeClassic: String { String(localized: "game.theme.classic") }
+    static var themeAurora: String { String(localized: "game.theme.aurora") }
+    static var themeGrove: String { String(localized: "game.theme.grove") }
+    static var themeEmber: String { String(localized: "game.theme.ember") }
+    static var themeLockedBadge: String { String(localized: "game.theme.locked_badge") }
+
+    static var statsVsAI: String { String(localized: "game.stats.vs_ai") }
+    static var statsStreak: String { String(localized: "game.stats.streak") }
+    static var statsBest: String { String(localized: "game.stats.best") }
+
+    static func statsLine(wins: Int, losses: Int, draws: Int, streak: Int, best: Int) -> String {
+        "\(statsVsAI) \(wins)-\(losses)-\(draws)  \(statsStreak) \(streak) (\(statsBest) \(best))"
+    }
+
+    static var soundOn: String { String(localized: "game.sound.on") }
+    static var soundOff: String { String(localized: "game.sound.off") }
+
+    static var themeUnlockIntro: String { String(localized: "game.theme.unlock.intro") }
+    static var themeUnlockDetails: String { String(localized: "game.theme.unlock.details") }
 }

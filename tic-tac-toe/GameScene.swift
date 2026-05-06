@@ -17,96 +17,24 @@ private enum Layer {
     static let hud: CGFloat = 100
 }
 
-/// EN: All colours/fonts tones for dark vs light `effectiveAppearance`, blended with system `accent`.
-/// RU: Все цвета/тон для тёмной и светлой `effectiveAppearance`, смешение с системным акцентом.
-private struct BoardPalette {
-    let sceneBackground: SKColor
-    let panelFill: SKColor
-    let panelStroke: SKColor
-    let boardShadow: SKColor
-    let boardPlaqueFill: SKColor
-    let boardPlaqueStroke: SKColor
-    let cellEven: SKColor
-    let cellOdd: SKColor
-    let gridLine: SKColor
-    let gridOuter: SKColor
-    let crossMark: SKColor
-    let noughtMark: SKColor
-    let statusText: SKColor
-    let captionText: SKColor
-    let pillFill: SKColor
-    let pillFillSelected: SKColor
-    let pillStroke: SKColor
-    let pillStrokeSelected: SKColor
-    let pillText: SKColor
-    let pillTextDisabled: SKColor
-    let newGameFill: SKColor
-    let newGameStroke: SKColor
-    let newGameLabel: SKColor
-    let winLine: SKColor
-
-    init(darkMode: Bool, accent: NSColor) {
-        // EN: Dark “cosmic boardroom” vs bright “clean paper” moods / RU: Тёмный «космический салон» vs светлый «чистая бумага»
-        if darkMode {
-            sceneBackground = NSColor(calibratedRed: 0.055, green: 0.065, blue: 0.12, alpha: 1)
-            panelFill = NSColor(calibratedWhite: 1, alpha: 0.055)
-            panelStroke = NSColor(calibratedWhite: 1, alpha: 0.11)
-            boardShadow = NSColor(calibratedHue: 0.62, saturation: 0.55, brightness: 0.06, alpha: 0.55)
-            boardPlaqueFill = NSColor(calibratedRed: 0.085, green: 0.095, blue: 0.16, alpha: 1)
-            boardPlaqueStroke = accent.withAlphaComponent(0.42)
-            cellEven = NSColor(calibratedRed: 0.13, green: 0.15, blue: 0.26, alpha: 1)
-            cellOdd = NSColor(calibratedRed: 0.1, green: 0.115, blue: 0.2, alpha: 1)
-            gridLine = NSColor(calibratedWhite: 1, alpha: 0.13)
-            gridOuter = NSColor(calibratedWhite: 1, alpha: 0.32)
-            crossMark = NSColor(calibratedRed: 1, green: 0.38, blue: 0.45, alpha: 1)
-            noughtMark = NSColor(calibratedRed: 0.38, green: 0.88, blue: 0.82, alpha: 1)
-            statusText = NSColor(calibratedWhite: 0.94, alpha: 1)
-            captionText = NSColor(calibratedWhite: 0.52, alpha: 1)
-            pillFill = NSColor(calibratedWhite: 1, alpha: 0.065)
-            pillFillSelected = accent.withAlphaComponent(0.26)
-            pillStroke = NSColor(calibratedWhite: 1, alpha: 0.16)
-            pillStrokeSelected = accent
-            pillText = NSColor(calibratedWhite: 0.93, alpha: 1)
-            pillTextDisabled = NSColor(calibratedWhite: 0.36, alpha: 1)
-            newGameFill = accent.withAlphaComponent(0.34)
-            newGameStroke = accent.withAlphaComponent(0.72)
-            newGameLabel = NSColor(calibratedWhite: 0.98, alpha: 1)
-            winLine = NSColor(calibratedRed: 1, green: 0.82, blue: 0.28, alpha: 1)
-        } else {
-            sceneBackground = NSColor(calibratedRed: 0.92, green: 0.935, blue: 0.975, alpha: 1)
-            panelFill = NSColor(calibratedWhite: 1, alpha: 0.78)
-            panelStroke = NSColor(calibratedHue: 0.58, saturation: 0.08, brightness: 0.72, alpha: 0.35)
-            boardShadow = NSColor(calibratedHue: 0.58, saturation: 0.18, brightness: 0.55, alpha: 0.22)
-            boardPlaqueFill = NSColor(calibratedRed: 0.985, green: 0.99, blue: 1, alpha: 1)
-            boardPlaqueStroke = accent.withAlphaComponent(0.38)
-            cellEven = NSColor(calibratedHue: 0.58, saturation: 0.06, brightness: 0.97, alpha: 1)
-            cellOdd = NSColor(calibratedHue: 0.56, saturation: 0.05, brightness: 0.935, alpha: 1)
-            gridLine = NSColor(calibratedHue: 0.55, saturation: 0.08, brightness: 0.72, alpha: 0.55)
-            gridOuter = NSColor(calibratedHue: 0.55, saturation: 0.12, brightness: 0.58, alpha: 0.65)
-            crossMark = NSColor(calibratedRed: 0.82, green: 0.18, blue: 0.26, alpha: 1)
-            noughtMark = NSColor(calibratedRed: 0.08, green: 0.48, blue: 0.52, alpha: 1)
-            statusText = NSColor(calibratedHue: 0.62, saturation: 0.35, brightness: 0.22, alpha: 1)
-            captionText = NSColor(calibratedHue: 0.58, saturation: 0.06, brightness: 0.42, alpha: 1)
-            pillFill = NSColor(calibratedWhite: 1, alpha: 0.92)
-            pillFillSelected = accent.withAlphaComponent(0.2)
-            pillStroke = NSColor(calibratedHue: 0.55, saturation: 0.06, brightness: 0.78, alpha: 0.7)
-            pillStrokeSelected = accent
-            pillText = NSColor(calibratedHue: 0.58, saturation: 0.28, brightness: 0.18, alpha: 1)
-            pillTextDisabled = NSColor(calibratedHue: 0.55, saturation: 0.04, brightness: 0.62, alpha: 1)
-            newGameFill = accent.withAlphaComponent(0.26)
-            newGameStroke = accent.withAlphaComponent(0.55)
-            newGameLabel = NSColor(calibratedHue: 0.58, saturation: 0.35, brightness: 0.15, alpha: 1)
-            winLine = NSColor(calibratedRed: 0.95, green: 0.62, blue: 0.08, alpha: 1)
-        }
-    }
-}
-
 @MainActor
 final class GameScene: SKScene {
 
     /// EN: Theme snapshot rebuilt whenever layout or system appearance-driven colours refresh.
     /// RU: Снимок темы пересобирается при смене раскладки или цветов из темы системы.
     private var palette: BoardPalette!
+
+    /// EN: Wins/losses vs AI, streaks, unlocks — persisted.
+    /// RU: Победы/поражения против ИИ, серии, разблокировки — сохраняются.
+    private var progress = GameProgressStore.load()
+
+    /// EN: Footer line under theme picker — vs-AI stats.
+    /// RU: Строка под темами — статистика против ИИ.
+    private var statsFooterLabel: SKLabelNode!
+
+    /// EN: Ensures one persistence write per finished round vs AI.
+    /// RU: Одно сохранение за завершённый раунд против ИИ.
+    private var roundOutcomeRecorded = false
 
     // EN: Rule/UI settings kept alongside `game` so `rebuildLayout()` can reconstruct `GameModel` safely.
     // RU: Настройки правил/UI рядом с `game`, чтобы `rebuildLayout()` мог безопасно пересоздать `GameModel`.
@@ -210,6 +138,7 @@ final class GameScene: SKScene {
     /// RU: Пользователь сменил правила поля — пересоздаём модель и всё дерево узлов.
     private func applyBoardConfiguration() {
         bumpInputEpoch()
+        roundOutcomeRecorded = false
         if winLength > boardSize {
             winLength = boardSize
         }
@@ -226,13 +155,14 @@ final class GameScene: SKScene {
         markNodes.removeAll()
 
         let darkMode = isDarkInterfaceActive
-        palette = BoardPalette(darkMode: darkMode, accent: NSColor.controlAccentColor)
+        palette = BoardPalette(style: progress.selectedTheme, darkMode: darkMode, accent: NSColor.controlAccentColor)
+        GameSoundFX.shared.soundEffectsEnabled = progress.soundEnabled
         backgroundColor = palette.sceneBackground
 
         let n = game.boardSize
         // EN: Minimum inset from scene edges / RU: Минимальный отступ от краёв сцены
         let margin = max(12, min(size.width, size.height) * 0.02)
-        let panelHalfWidth: CGFloat = 86
+        let panelHalfWidth: CGFloat = 102
         let panelGap: CGFloat = 16
         let panelCenterX = -size.width * 0.5 + margin + panelHalfWidth
 
@@ -360,6 +290,45 @@ final class GameScene: SKScene {
         )
 
         if opponentMode == .humanComputer {
+            settingsY -= pillH + 12
+            addSectionCaption(x: panelCenterX, y: settingsY + 22, text: L10n.settingsAiDifficulty)
+            let diffPillW: CGFloat = 58
+            let diffSpacing: CGFloat = 46
+            settingsY -= 18
+            makePill(
+                name: "ai_easy",
+                title: L10n.aiEasy,
+                x: panelCenterX - diffSpacing,
+                y: settingsY,
+                width: diffPillW,
+                height: pillH,
+                fontSize: 11,
+                selected: progress.aiDifficulty == .easy,
+                enabled: true
+            )
+            makePill(
+                name: "ai_medium",
+                title: L10n.aiMedium,
+                x: panelCenterX,
+                y: settingsY,
+                width: diffPillW,
+                height: pillH,
+                fontSize: 11,
+                selected: progress.aiDifficulty == .medium,
+                enabled: true
+            )
+            makePill(
+                name: "ai_hard",
+                title: L10n.aiHard,
+                x: panelCenterX + diffSpacing,
+                y: settingsY,
+                width: diffPillW,
+                height: pillH,
+                fontSize: 11,
+                selected: progress.aiDifficulty == .hard,
+                enabled: true
+            )
+
             settingsY -= pillH + 14
             makePill(
                 name: "pick_x",
@@ -386,7 +355,64 @@ final class GameScene: SKScene {
             )
         }
 
+        settingsY -= opponentMode == .humanComputer ? pillH + 22 : pillH + 14
+        addSectionCaption(x: panelCenterX, y: settingsY + 22, text: L10n.settingsTheme)
+        settingsY -= 18
+        let themePillW: CGFloat = 72
+        let themeStyles: [BoardVisualStyle] = [.classic, .aurora, .grove, .ember]
+        for row in 0..<2 {
+            for col in 0..<2 {
+                let i = row * 2 + col
+                let style = themeStyles[i]
+                let unlocked = progress.unlockedThemes.contains(style)
+                let x = panelCenterX + (col == 0 ? -colDX : colDX)
+                let y = settingsY - CGFloat(row) * (pillH + 8)
+                makePill(
+                    name: "theme_\(style.rawValue)",
+                    title: themePillTitle(style),
+                    x: x,
+                    y: y,
+                    width: themePillW,
+                    height: pillH,
+                    fontSize: 11,
+                    selected: progress.selectedTheme == style,
+                    enabled: unlocked
+                )
+            }
+        }
+        settingsY -= 2 * (pillH + 8) + 24
+
         let bottomY = -size.height * 0.46
+        let statsY = bottomY + 50
+        let soundToggleY = statsY + 32
+        makePill(
+            name: "sound_toggle",
+            title: progress.soundEnabled ? L10n.soundOn : L10n.soundOff,
+            x: panelCenterX,
+            y: soundToggleY,
+            width: min(148, modePillW + 36),
+            height: pillH,
+            fontSize: 11,
+            selected: progress.soundEnabled,
+            enabled: true
+        )
+
+        let hintFont = max(8.5, size.height * 0.011)
+        let hintLine2Y = soundToggleY + 26
+        let hintLine1Y = hintLine2Y + 13
+        addThemeUnlockHint(text: L10n.themeUnlockIntro, x: panelCenterX, y: hintLine1Y, fontSize: hintFont)
+        addThemeUnlockHint(text: L10n.themeUnlockDetails, x: panelCenterX, y: hintLine2Y, fontSize: hintFont)
+
+        statsFooterLabel = SKLabelNode(fontNamed: ".AppleSystemUIFontMedium")
+        statsFooterLabel.fontSize = max(9.5, size.height * 0.0125)
+        statsFooterLabel.fontColor = palette.captionText
+        statsFooterLabel.horizontalAlignmentMode = .center
+        statsFooterLabel.verticalAlignmentMode = .center
+        statsFooterLabel.position = CGPoint(x: panelCenterX, y: statsY)
+        statsFooterLabel.zPosition = Layer.hud
+        updateStatsFooterText()
+        addChild(statsFooterLabel)
+
         let newGameW = min(200, modePillW + 32)
         newGameButton = SKShapeNode(rectOf: CGSize(width: newGameW, height: 46), cornerRadius: 12)
         newGameButton.fillColor = palette.newGameFill
@@ -492,6 +518,29 @@ final class GameScene: SKScene {
         applyAIMoveIfNeeded()
     }
 
+    /// EN: Two-line helper text under theme pills — how to unlock cosmetic themes / RU: Текст под темами — как открыть оформление.
+    private func addThemeUnlockHint(text: String, x: CGFloat, y: CGFloat, fontSize: CGFloat) {
+        let label = SKLabelNode(fontNamed: ".AppleSystemUIFontMedium")
+        label.fontSize = fontSize
+        label.fontColor = palette.captionText.withAlphaComponent(0.88)
+        label.text = text
+        label.horizontalAlignmentMode = .center
+        label.verticalAlignmentMode = .center
+        label.position = CGPoint(x: x, y: y)
+        label.zPosition = Layer.hud
+        label.preferredMaxLayoutWidth = panelReadableWidth()
+        label.numberOfLines = 0
+        addChild(label)
+    }
+
+    /// EN: Match pill column width so wrapped hint lines stay inside frosted panel / RU: Ширина колонки под перенос строк подсказок.
+    private func panelReadableWidth() -> CGFloat {
+        let margin = max(12, min(size.width, size.height) * 0.02)
+        let panelHalfWidth: CGFloat = 102
+        let innerMargin: CGFloat = 14
+        return min(size.width - 2 * margin - innerMargin, panelHalfWidth * 2 + 56)
+    }
+
     /// EN: Small muted label above pill groups / RU: Приглушённая подпись над группами кнопок
     private func addSectionCaption(x: CGFloat, y: CGFloat, text: String) {
         let cap = SKLabelNode(fontNamed: ".AppleSystemUIFontMedium")
@@ -587,6 +636,7 @@ final class GameScene: SKScene {
         case .win(let winner):
             statusLabel.text = statusWinText(winner)
             if placed != nil {
+                GameSoundFX.shared.playWinFanfare()
                 animateOutcomeBanner(wasWin: true)
             }
         case .draw:
@@ -596,6 +646,55 @@ final class GameScene: SKScene {
                 animateOutcomeBanner(wasWin: false)
             }
         }
+
+        maybeRecordVsAIOutcome()
+        updateStatsFooterText()
+    }
+
+    /// EN: Persist win/loss/draw and streak once when a vs-AI round leaves `inProgress`.
+    /// RU: Один раз сохранить победу/поражение/ничью и серию, когда партия против ИИ завершилась.
+    private func maybeRecordVsAIOutcome() {
+        guard opponentMode == .humanComputer else { return }
+        guard !roundOutcomeRecorded else { return }
+        switch game.outcome() {
+        case .inProgress:
+            return
+        case .win(let winner):
+            roundOutcomeRecorded = true
+            progress.applyVsAIOutcome(humanWon: winner == humanPlayer)
+            GameProgressStore.save(progress)
+        case .draw:
+            roundOutcomeRecorded = true
+            progress.applyVsAIOutcome(humanWon: nil)
+            GameProgressStore.save(progress)
+        }
+    }
+
+    private func updateStatsFooterText() {
+        statsFooterLabel.text = L10n.statsLine(
+            wins: progress.winsVsAI,
+            losses: progress.lossesVsAI,
+            draws: progress.drawsVsAI,
+            streak: progress.currentWinStreak,
+            best: progress.bestWinStreak
+        )
+    }
+
+    private func themePillTitle(_ style: BoardVisualStyle) -> String {
+        let name: String = switch style {
+        case .classic:
+            L10n.themeClassic
+        case .aurora:
+            L10n.themeAurora
+        case .grove:
+            L10n.themeGrove
+        case .ember:
+            L10n.themeEmber
+        }
+        if progress.unlockedThemes.contains(style) {
+            return name
+        }
+        return name + L10n.themeLockedBadge
     }
 
     /// EN: Animated stroke across winning segment endpoints (first & last indices along rule order).
@@ -763,12 +862,13 @@ final class GameScene: SKScene {
         let epoch = inputEpoch
         let snapshot = game
         let ai = aiPlayer
+        let difficulty = progress.aiDifficulty
 
         aiThinkingTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 220_000_000)
             guard !Task.isCancelled else { return }
             let move = await Task.detached {
-                TicTacToeAI.bestMove(for: ai, in: snapshot)
+                TicTacToeAI.bestMove(for: ai, in: snapshot, difficulty: difficulty)
             }.value
             await MainActor.run { [weak self] in
                 guard let self else { return }
@@ -779,6 +879,9 @@ final class GameScene: SKScene {
                 guard self.game.currentPlayer == ai else { return }
                 if let m = move {
                     try? self.game.play(at: m.row, col: m.col)
+                    if self.game.outcome() == .inProgress {
+                        GameSoundFX.shared.playMoveTap()
+                    }
                     self.syncUI(animateMarkAt: (m.row, m.col))
                 }
             }
@@ -789,6 +892,7 @@ final class GameScene: SKScene {
     /// RU: Очищает модель и визуал, сохраняет переключатели правил, при необходимости снова запускает открытие ИИ.
     private func restartRound() {
         bumpInputEpoch()
+        roundOutcomeRecorded = false
         game.reset()
         didPlayDrawFX = false
         winHighlightLine?.removeFromParent()
@@ -835,7 +939,35 @@ final class GameScene: SKScene {
                 }
                 return
             }
+            if name == "sound_toggle" {
+                progress.soundEnabled.toggle()
+                GameSoundFX.shared.soundEffectsEnabled = progress.soundEnabled
+                GameProgressStore.save(progress)
+                if progress.soundEnabled {
+                    GameSoundFX.shared.playMoveTap()
+                }
+                rebuildLayout()
+                return
+            }
             if opponentMode == .humanComputer {
+                if name == "ai_easy", progress.aiDifficulty != .easy {
+                    progress.aiDifficulty = .easy
+                    GameProgressStore.save(progress)
+                    rebuildLayout()
+                    return
+                }
+                if name == "ai_medium", progress.aiDifficulty != .medium {
+                    progress.aiDifficulty = .medium
+                    GameProgressStore.save(progress)
+                    rebuildLayout()
+                    return
+                }
+                if name == "ai_hard", progress.aiDifficulty != .hard {
+                    progress.aiDifficulty = .hard
+                    GameProgressStore.save(progress)
+                    rebuildLayout()
+                    return
+                }
                 if name == "pick_x", humanPlayer != .x {
                     humanPlayer = .x
                     applyBoardConfiguration()
@@ -846,6 +978,15 @@ final class GameScene: SKScene {
                     applyBoardConfiguration()
                     return
                 }
+            }
+            if name.hasPrefix("theme_"),
+               let style = BoardVisualStyle(rawValue: String(name.dropFirst(6))),
+               progress.unlockedThemes.contains(style),
+               progress.selectedTheme != style {
+                progress.selectedTheme = style
+                GameProgressStore.save(progress)
+                rebuildLayout()
+                return
             }
         }
 
@@ -864,9 +1005,13 @@ final class GameScene: SKScene {
 
             do {
                 try game.play(at: row, col: col)
+                if game.outcome() == .inProgress {
+                    GameSoundFX.shared.playMoveTap()
+                }
                 syncUI(animateMarkAt: (row, col))
                 applyAIMoveIfNeeded()
             } catch {
+                GameSoundFX.shared.playInvalidMove()
                 break
             }
             return
