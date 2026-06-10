@@ -26,6 +26,24 @@ final class ViewController: NSViewController {
         view.ignoresSiblingOrder = true
         view.showsFPS = false
         view.showsNodeCount = false
+
+        view.setAccessibilityElement(true)
+        view.setAccessibilityHelp(L10n.accessibilityKeyboardHelp)
+    }
+
+    override var acceptsFirstResponder: Bool { true }
+
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        view.window?.makeFirstResponder(self)
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if let scene = skView?.scene as? GameScene {
+            scene.keyDown(with: event)
+        } else {
+            super.keyDown(with: event)
+        }
     }
 
     override func viewDidLayout() {

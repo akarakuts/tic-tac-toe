@@ -1,7 +1,7 @@
 // EN: Opponent AI — minimax with alpha-beta, depth limits on large boards, and tactical win/block moves.
 // RU: ИИ соперника — минимакс с альфа-бета отсечением, лимит глубины на больших полях и тактика выигрыша/блока.
 
-enum OpponentMode: Equatable, Sendable {
+enum OpponentMode: String, Equatable, Sendable, Codable {
     case humanHuman
     case humanComputer
 }
@@ -10,7 +10,12 @@ enum TicTacToeAI: Sendable {
 
     /// EN: Best reply for `aiPlayer` from `state`, or nil if not AI turn or game over.
     /// RU: Лучший ответ для `aiPlayer` из позиции `state`, или nil если не ход ИИ или партия окончена.
-    static func bestMove(for aiPlayer: Player, in state: GameModel, difficulty: AIDifficulty = .hard) -> (row: Int, col: Int)? {
+    static func bestMove(
+        for aiPlayer: Player,
+        in state: GameModel,
+        difficulty: AIDifficulty = .hard,
+        randomness: TicTacToeAIRandomness = .system
+    ) -> (row: Int, col: Int)? {
         guard state.outcome() == .inProgress else { return nil }
         guard state.currentPlayer == aiPlayer else { return nil }
 
@@ -25,13 +30,13 @@ enum TicTacToeAI: Sendable {
         case .easy: 0.67
         case .medium, .hard: 1
         }
-        if Double.random(in: 0...1) < blockProbability, let block = immediateBlockMove(ai: aiPlayer, in: state) {
+        if randomness.chance(blockProbability), let block = immediateBlockMove(ai: aiPlayer, in: state) {
             return block
         }
 
         // EN: Easy frequently plays random empty squares before lookahead / РУ: Лёгкий часто ходит наугад.
-        if difficulty == .easy, Double.random(in: 0...1) < 0.44 {
-            return allEmptyCells(state: state).randomElement()
+        if difficulty == .easy, randomness.chance(0.44) {
+            return randomness.pick(allEmptyCells(state: state))
         }
 
         let plyBudget = cappedSearchPlies(for: state, difficulty: difficulty)
@@ -54,14 +59,14 @@ enum TicTacToeAI: Sendable {
         }
 
         guard let bestScore = scored.map(\.score).max() else {
-            return allEmptyCells(state: state).randomElement()
+            return randomness.pick(allEmptyCells(state: state))
         }
 
         // EN: Medium occasionally picks a near-best move so lines stay unpredictable / RU: Средний иногда выбирает почти лучший ход.
-        if difficulty == .medium, Double.random(in: 0...1) < 0.28 {
+        if difficulty == .medium, randomness.chance(0.28) {
             let slack = 320
             let pool = scored.filter { $0.score >= bestScore - slack }
-            if let pick = pool.randomElement() {
+            if let pick = randomness.pick(pool) {
                 return (pick.row, pick.col)
             }
         }
@@ -156,7 +161,7 @@ enum TicTacToeAI: Sendable {
         let n = state.boardSize
         let w = state.winLength
         let idx = row * n + col
-        let lines = GameModel.makeWinLines(boardSize: n, winLength: w)
+        let lines = state.lineSegments
         lineLoop: for line in lines {
             guard line.contains(idx) else { continue }
             var pCount = 0
@@ -186,7 +191,7 @@ enum TicTacToeAI: Sendable {
     /// RU: Эвристика на обрезке по глубине — поощряет угрозы ИИ, штрафует угрозы соперника на открытых линиях.
     private static func evaluateStatic(state: GameModel, ai: Player) -> Int {
         let opp = ai.other
-        let lines = GameModel.makeWinLines(boardSize: state.boardSize, winLength: state.winLength)
+        let lines = state.lineSegments
         var score = 0
         let n = state.boardSize
         for line in lines {

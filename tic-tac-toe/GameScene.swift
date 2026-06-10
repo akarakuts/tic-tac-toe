@@ -4,34 +4,20 @@ import SpriteKit
 // EN: Main SpriteKit scene — themed HUD, responsive board layout, mouse input, async AI moves, win/draw FX.
 // RU: Основная SpriteKit-сцена — темизированный HUD, адаптивное поле, мышь, асинхронный ход ИИ, эффекты победы/ничьей.
 
-/// EN: Node stacking order (higher z draws on top).
-/// RU: Порядок слоёв узлов (больший z рисуется поверх).
-private enum Layer {
-    static let backdropDecor: CGFloat = -40
-    static let boardShadow: CGFloat = -15
-    static let boardPlaque: CGFloat = -8
-    static let grid: CGFloat = 0
-    static let cellHit: CGFloat = 10
-    static let mark: CGFloat = 20
-    static let winLine: CGFloat = 35
-    static let panelBackdrop: CGFloat = 40
-    static let hud: CGFloat = 100
-}
-
 @MainActor
 final class GameScene: SKScene {
 
     /// EN: Theme snapshot rebuilt whenever layout or system appearance-driven colours refresh.
     /// RU: Снимок темы пересобирается при смене раскладки или цветов из темы системы.
-    private var palette: BoardPalette!
+    var palette: BoardPalette!
 
     /// EN: Wins/losses vs AI, streaks, unlocks — persisted.
     /// RU: Победы/поражения против ИИ, серии, разблокировки — сохраняются.
-    private var progress = GameProgressStore.load()
+    var progress = GameProgressStore.load()
 
     /// EN: VS AI stats card (rebuilt with layout; values refreshed in `updateStatsFooterText`).
     /// RU: Карточка статистики против ИИ (пересборка в раскладке; значения в `updateStatsFooterText`).
-    private var statsStripRoot: SKNode!
+    var statsStripRoot: SKNode!
 
     /// EN: Ensures one persistence write per finished round vs AI.
     /// RU: Одно сохранение за завершённый раунд против ИИ.
@@ -41,7 +27,7 @@ final class GameScene: SKScene {
     // RU: Настройки правил/UI рядом с `game`, чтобы `rebuildLayout()` мог безопасно пересоздать `GameModel`.
     private var boardSize = 3
     private var winLength = 3
-    private var game = GameModel(boardSize: 3, winLength: 3)
+    var game = GameModel(boardSize: 3, winLength: 3)
 
     private var opponentMode: OpponentMode = .humanHuman
     private var humanPlayer: Player = .x
@@ -51,16 +37,16 @@ final class GameScene: SKScene {
 
     /// EN: Root node for grid geometry (lines, plaque, cells); positioned at board centre.
     /// RU: Корневой узел геометрии сетки (линии, подложка, клетки); позиционируется в центре доски.
-    private var boardGrid: SKNode!
+    var boardGrid: SKNode!
     /// EN: Cached half-side of square board and cell edge length — used by win-line overlay math.
     /// RU: Кэш половины стороны квадратного поля и размера ячейки — для линии победы и подсветки.
-    private var boardHalfBoard: CGFloat = 0
-    private var boardCellSide: CGFloat = 0
+    var boardHalfBoard: CGFloat = 0
+    var boardCellSide: CGFloat = 0
 
     private var winHighlightLine: SKShapeNode?
 
-    private var statusLabel: SKLabelNode!
-    private var newGameButton: SKShapeNode!
+    var statusLabel: SKLabelNode!
+    var newGameButton: SKShapeNode!
 
     /// EN: Ensures draw FX runs once per finished round.
     /// RU: Гарантирует однократное воспроизведение эффекта при ничьей за раунд.
@@ -71,13 +57,19 @@ final class GameScene: SKScene {
     private var inputEpoch = 0
     private var aiThinkingTask: Task<Void, Never>?
 
+    /// EN: Keyboard focus cell — arrow keys move, Return confirms move.
+    /// RU: Фокус клавиатуры на клетке — стрелки двигают, Return ставит символ.
+    var keyboardFocusRow = 1
+    var keyboardFocusCol = 1
+    var focusRingNode: SKShapeNode?
+
     /// EN: System appearance subscription — `SKView.window` is often nil on first `didMove`, so we also listen for global changes.
     /// RU: Подписка на тему — при первом `didMove` у `SKView` часто ещё нет `window`, плюс слушаем смену темы глобально.
     private var appearanceChangeObserver: NSObjectProtocol?
 
     /// EN: Resolves light/dark from the window when attached, otherwise from `NSApp` (correct at cold launch).
     /// RU: Светлая/тёмная тема из окна, если оно уже есть, иначе из `NSApp` (корректно при холодном старте).
-    private var isDarkInterfaceActive: Bool {
+    var isDarkInterfaceActive: Bool {
         let appearance = view?.window?.effectiveAppearance ?? NSApp.effectiveAppearance
         return appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
     }
@@ -118,6 +110,8 @@ final class GameScene: SKScene {
         // RU: Координаты сцены по центру вида — расчёты отталкиваются от середины.
         anchorPoint = CGPoint(x: 0.5, y: 0.5)
         installAppearanceChangeObserverIfNeeded()
+        applyPersistedSettings()
+        view.window?.makeFirstResponder(view)
         rebuildLayout()
     }
 
@@ -137,14 +131,35 @@ final class GameScene: SKScene {
 
     /// EN: User changed board rules — rebuild model + entire node tree from scratch.
     /// RU: Пользователь сменил правила поля — пересоздаём модель и всё дерево узлов.
+    private func applyPersistedSettings() {
+        opponentMode = progress.opponentMode
+        boardSize = progress.boardSize
+        winLength = progress.winLength
+        humanPlayer = progress.humanPlayer
+        game = GameModel(boardSize: boardSize, winLength: winLength)
+    }
+
+    private func syncSettingsToProgress() {
+        progress.opponentMode = opponentMode
+        progress.setBoardSize(boardSize)
+        progress.setWinLength(winLength)
+        progress.setHumanPlayer(humanPlayer)
+        GameProgressStore.save(progress)
+    }
+
     private func applyBoardConfiguration() {
         bumpInputEpoch()
         roundOutcomeRecorded = false
         if winLength > boardSize {
             winLength = boardSize
         }
+        syncSettingsToProgress()
         game = GameModel(boardSize: boardSize, winLength: winLength)
         rebuildLayout()
+    }
+
+    var isHumanTurn: Bool {
+        opponentMode == .humanHuman || game.currentPlayer == humanPlayer
     }
 
     /// EN: Uniform scale for left HUD vs ~760pt window short side / RU: Масштаб левой панели и контролов от короткой стороны окна.
@@ -216,7 +231,7 @@ final class GameScene: SKScene {
         statusLabel.fontSize = statusFontSize
         statusLabel.fontColor = palette.statusText
         statusLabel.position = CGPoint(x: boardCenterX, y: statusLabelY)
-        statusLabel.zPosition = Layer.hud
+        statusLabel.zPosition = GameSceneLayer.hud
         addChild(statusLabel)
 
         // EN: --- Left HUD: single bottom→top stack so hints/sound/stats never collide with pills ---
@@ -254,7 +269,7 @@ final class GameScene: SKScene {
         newGameButton.lineWidth = max(1.15, min(2.2, 1.5 * hudScale))
         newGameButton.position = CGPoint(x: panelCenterX, y: cy)
         newGameButton.name = "newGame"
-        newGameButton.zPosition = Layer.hud
+        newGameButton.zPosition = GameSceneLayer.hud
         addChild(newGameButton)
 
         let newGameLabel = SKLabelNode(fontNamed: ".AppleSystemUIFontSemibold")
@@ -263,7 +278,7 @@ final class GameScene: SKScene {
         newGameLabel.verticalAlignmentMode = .center
         newGameLabel.text = L10n.newGame
         newGameLabel.position = CGPoint(x: panelCenterX, y: cy)
-        newGameLabel.zPosition = Layer.hud + 1
+        newGameLabel.zPosition = GameSceneLayer.hud + 1
         addChild(newGameLabel)
 
         let statsCard = makeVsAiStatsCard(width: hudCardW, layoutScale: hudScale)
@@ -271,7 +286,7 @@ final class GameScene: SKScene {
         cy += newGameH * 0.5 + bandGap + statsH * 0.5
         statsStripRoot = statsCard.node
         statsStripRoot.position = CGPoint(x: panelCenterX, y: cy)
-        statsStripRoot.zPosition = Layer.hud
+        statsStripRoot.zPosition = GameSceneLayer.hud
         addChild(statsStripRoot)
         updateStatsFooterText()
 
@@ -510,94 +525,30 @@ final class GameScene: SKScene {
         panelBackdrop.strokeColor = palette.panelStroke.withAlphaComponent(min(1, palette.panelStroke.alphaComponent * 1.12))
         panelBackdrop.lineWidth = max(0.85, min(1.6, hudScale))
         panelBackdrop.position = CGPoint(x: panelCenterX, y: panelBackdropCY)
-        panelBackdrop.zPosition = Layer.panelBackdrop
+        panelBackdrop.zPosition = GameSceneLayer.panelBackdrop
         insertChild(panelBackdrop, at: 0)
 
         // EN: Place theme legend under the board / RU: Легенда тем — под доской.
         themeLegendRow.node.position = CGPoint(x: boardCenterX, y: sceneBottomY + legendH * 0.5)
-        themeLegendRow.node.zPosition = Layer.hud
+        themeLegendRow.node.zPosition = GameSceneLayer.hud
         addChild(themeLegendRow.node)
 
-        // EN: --- Board chrome (shadow, plaque, grid, checker cells, marks) ---
-        // RU: --- Оформление доски (тень, подложка, сетка, шахматные клетки, символы) ---
-        let grid = SKNode()
-        boardGrid = grid
-        boardHalfBoard = halfBoard
-        boardCellSide = cellSide
-        grid.position = CGPoint(x: boardCenterX, y: boardCenterY)
-        grid.zPosition = Layer.grid
-        addChild(grid)
+        let board = BoardRenderer.build(
+            boardSize: n,
+            boardSide: boardSide,
+            center: CGPoint(x: boardCenterX, y: boardCenterY),
+            palette: palette
+        )
+        boardGrid = board.grid
+        boardHalfBoard = board.halfBoard
+        boardCellSide = board.cellSide
+        cellNodes = board.cellNodes
+        markNodes = board.markNodes
+        addChild(board.grid)
 
-        let plaquePad: CGFloat = 18
-        let shadow = SKShapeNode(rectOf: CGSize(width: boardSide + plaquePad + 8, height: boardSide + plaquePad + 8), cornerRadius: 18)
-        shadow.fillColor = palette.boardShadow
-        shadow.strokeColor = .clear
-        shadow.position = CGPoint(x: -5, y: -7)
-        shadow.zPosition = Layer.boardShadow
-        grid.addChild(shadow)
-
-        let plaque = SKShapeNode(rectOf: CGSize(width: boardSide + plaquePad, height: boardSide + plaquePad), cornerRadius: 16)
-        plaque.fillColor = palette.boardPlaqueFill
-        plaque.strokeColor = palette.boardPlaqueStroke
-        plaque.lineWidth = 2
-        plaque.zPosition = Layer.boardPlaque
-        grid.addChild(plaque)
-
-        let lineColor = palette.gridLine
-        let lineWidth = max(1.5, boardSide * 0.004)
-
-        func addLine(from: CGPoint, to: CGPoint) {
-            let path = CGMutablePath()
-            path.move(to: from)
-            path.addLine(to: to)
-            let shape = SKShapeNode(path: path)
-            shape.strokeColor = lineColor
-            shape.lineWidth = lineWidth
-            shape.lineCap = .round
-            grid.addChild(shape)
-        }
-
-        for i in 1..<n {
-            let offset = -halfBoard + CGFloat(i) * cellSide
-            addLine(from: CGPoint(x: offset, y: -halfBoard), to: CGPoint(x: offset, y: halfBoard))
-            addLine(from: CGPoint(x: -halfBoard, y: offset), to: CGPoint(x: halfBoard, y: offset))
-        }
-
-        let outer = SKShapeNode(rectOf: CGSize(width: boardSide, height: boardSide))
-        outer.strokeColor = palette.gridOuter
-        outer.lineWidth = max(lineWidth * 1.35, 2)
-        outer.fillColor = .clear
-        grid.addChild(outer)
-
-        let inset = max(1, cellSide * 0.06)
-        let markScale = min(0.62, 2.7 / CGFloat(n))
-
-        for row in 0..<n {
-            for col in 0..<n {
-                let checker = (row + col) % 2 == 0
-                let cellTint = checker ? palette.cellEven : palette.cellOdd
-                let node = SKSpriteNode(color: cellTint, size: CGSize(width: cellSide - inset * 2, height: cellSide - inset * 2))
-                let cx = -halfBoard + cellSide * (CGFloat(col) + 0.5)
-                let cy = -halfBoard + cellSide * (CGFloat(row) + 0.5)
-                node.position = CGPoint(x: cx, y: cy)
-                let key = Self.cellKey(row: row, col: col)
-                node.name = key
-                node.zPosition = Layer.cellHit
-                grid.addChild(node)
-                cellNodes[key] = node
-
-                let mark = SKLabelNode(fontNamed: ".AppleSystemUIFontBold")
-                mark.fontSize = cellSide * markScale
-                mark.fontColor = palette.statusText
-                mark.verticalAlignmentMode = .center
-                mark.horizontalAlignmentMode = .center
-                mark.position = CGPoint(x: cx, y: cy)
-                mark.zPosition = Layer.mark
-                mark.text = ""
-                grid.addChild(mark)
-                markNodes[key] = mark
-            }
-        }
+        keyboardFocusRow = min(keyboardFocusRow, n - 1)
+        keyboardFocusCol = min(keyboardFocusCol, n - 1)
+        refreshFocusRing()
 
         didPlayDrawFX = false
         syncUI()
@@ -608,423 +559,6 @@ final class GameScene: SKScene {
     }
 
     /// EN: Rounded VS AI stats card — triple metric row + streak footer / RU: Карточка статистики против ИИ.
-    private func makeVsAiStatsCard(width: CGFloat, layoutScale s: CGFloat) -> (node: SKNode, height: CGFloat) {
-        let root = SKNode()
-        root.name = "vs_ai_stats_root"
-
-        let h: CGFloat = max(66 * s, min(102 * s, size.height * 0.095 * max(s, 0.85)))
-        let cr = max(10, min(18, 14 * s))
-        let bg = SKShapeNode(rectOf: CGSize(width: width, height: h), cornerRadius: cr)
-        bg.fillColor = palette.pillFill.withAlphaComponent(min(1, palette.pillFill.alphaComponent * 1.45))
-        bg.strokeColor = palette.panelStroke.withAlphaComponent(min(1, palette.panelStroke.alphaComponent * 1.05))
-        bg.lineWidth = max(0.75, min(1.5, s))
-        bg.position = .zero
-        root.addChild(bg)
-
-        let glossH = max(14 * s, h * 0.22)
-        let gloss = SKShapeNode(rectOf: CGSize(width: width - 2 * s, height: glossH), cornerRadius: max(8, min(14, 12 * s)))
-        gloss.fillColor = NSColor(calibratedWhite: 1, alpha: isDarkInterfaceActive ? 0.04 : 0.07)
-        gloss.strokeColor = .clear
-        gloss.position = CGPoint(x: 0, y: h * 0.5 - glossH * 0.5 - 2 * s)
-        gloss.zPosition = 0.5
-        root.addChild(gloss)
-
-        let cap = SKLabelNode(fontNamed: ".AppleSystemUIFontSemibold")
-        cap.fontSize = max(8, min(13.5, size.height * 0.011 * s))
-        cap.fontColor = palette.captionText.withAlphaComponent(0.82)
-        cap.text = L10n.statsVsAI
-        cap.horizontalAlignmentMode = .center
-        cap.verticalAlignmentMode = .center
-        cap.position = CGPoint(x: 0, y: h * 0.5 - 15 * s)
-        cap.zPosition = 1
-        root.addChild(cap)
-
-        let colX: [CGFloat] = [-width * 0.26, 0, width * 0.26]
-        let yNums = h * 0.5 - 36 * s
-        let ySyms = h * 0.5 - 52 * s
-
-        func addColumn(index: Int, symbol: String, valueKey: String, value: Int, valueColor: SKColor) {
-            let sym = SKLabelNode(fontNamed: ".AppleSystemUIFontMedium")
-            sym.fontSize = max(8.5, min(13.5, size.height * 0.012 * s))
-            sym.fontColor = palette.captionText.withAlphaComponent(0.72)
-            sym.text = symbol
-            sym.horizontalAlignmentMode = .center
-            sym.verticalAlignmentMode = .center
-            sym.position = CGPoint(x: colX[index], y: ySyms)
-            sym.zPosition = 1
-            root.addChild(sym)
-
-            let num = SKLabelNode(fontNamed: ".AppleSystemUIFontBold")
-            num.name = valueKey
-            num.fontSize = max(12, min(22, size.height * 0.02 * s))
-            num.fontColor = valueColor
-            num.text = "\(value)"
-            num.horizontalAlignmentMode = .center
-            num.verticalAlignmentMode = .center
-            num.position = CGPoint(x: colX[index], y: yNums)
-            num.zPosition = 1
-            root.addChild(num)
-        }
-
-        addColumn(index: 0, symbol: "✓", valueKey: "stats_win_val", value: progress.winsVsAI, valueColor: palette.noughtMark.withAlphaComponent(0.96))
-        addColumn(index: 1, symbol: "✗", valueKey: "stats_loss_val", value: progress.lossesVsAI, valueColor: palette.crossMark.withAlphaComponent(0.95))
-        addColumn(index: 2, symbol: "=", valueKey: "stats_draw_val", value: progress.drawsVsAI, valueColor: palette.statusText.withAlphaComponent(0.82))
-
-        let sepH = 26 * s
-        let sepLeft = SKShapeNode(rectOf: CGSize(width: max(0.75, s * 0.85), height: sepH), cornerRadius: 0)
-        sepLeft.fillColor = palette.panelStroke.withAlphaComponent(0.35)
-        sepLeft.strokeColor = .clear
-        sepLeft.position = CGPoint(x: (colX[0] + colX[1]) * 0.5, y: yNums + 7 * s)
-        sepLeft.zPosition = 0.8
-        root.addChild(sepLeft)
-
-        let sepRight = SKShapeNode(rectOf: CGSize(width: max(0.75, s * 0.85), height: sepH), cornerRadius: 0)
-        sepRight.fillColor = palette.panelStroke.withAlphaComponent(0.35)
-        sepRight.strokeColor = .clear
-        sepRight.position = CGPoint(x: (colX[1] + colX[2]) * 0.5, y: yNums + 7 * s)
-        sepRight.zPosition = 0.8
-        root.addChild(sepRight)
-
-        let div = SKShapeNode(rectOf: CGSize(width: width - 22 * s, height: max(0.75, s * 0.85)), cornerRadius: 0)
-        div.fillColor = palette.panelStroke.withAlphaComponent(0.28)
-        div.strokeColor = .clear
-        div.position = CGPoint(x: 0, y: h * 0.5 - 58 * s)
-        div.zPosition = 0.8
-        root.addChild(div)
-
-        let streak = SKLabelNode(fontNamed: ".AppleSystemUIFontMedium")
-        streak.name = "stats_streak_line"
-        streak.fontSize = max(8, min(13, size.height * 0.0115 * s))
-        streak.fontColor = palette.captionText.withAlphaComponent(0.9)
-        streak.horizontalAlignmentMode = .center
-        streak.verticalAlignmentMode = .center
-        streak.position = CGPoint(x: 0, y: h * 0.5 - 69 * s)
-        streak.zPosition = 1
-        root.addChild(streak)
-
-        return (root, h)
-    }
-
-    /// EN: Theme unlock explainer — accent rail + headline + dotted rows / RU: Карточка разблокировки тем.
-    private func makeThemeUnlockCard(width: CGFloat, layoutScale s: CGFloat) -> (node: SKNode, height: CGFloat) {
-        let root = SKNode()
-        root.name = "theme_unlock_card_root"
-
-        let inset: CGFloat = max(9, min(17, 12 * s))
-        let rawDetails = L10n.themeUnlockDetails
-        let segments = rawDetails.split(whereSeparator: { $0 == "·" }).map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
-        let useRows = segments.count >= 3
-
-        let titleFont = max(9, min(14.5, size.height * 0.012 * s))
-        let titleLineHeight = titleFont * 1.22
-        let intro = L10n.themeUnlockIntro
-        let approxCharsPerLine = max(12, Int((width - inset * 2 - 10) / max(4, titleFont * 0.52)))
-        let titleLines = max(1, (intro.count + approxCharsPerLine - 1) / approxCharsPerLine)
-        let titleBlockH = CGFloat(titleLines) * titleLineHeight
-
-        let rowFont = max(8.5, min(13.5, size.height * 0.0113 * s))
-        let rowSpacing: CGFloat = max(13, min(21, 16 * s))
-
-        let bodyH: CGFloat
-        if useRows {
-            bodyH = 3 * rowSpacing + 14 * s
-        } else {
-            let detailLines = max(2, (rawDetails.count + approxCharsPerLine - 1) / approxCharsPerLine)
-            bodyH = max(CGFloat(detailLines) * rowFont * 1.42 + 16 * s, 52 * s)
-        }
-
-        let totalH = max(88 * s, inset + titleBlockH + 14 * s + bodyH + inset + 6 * s)
-
-        let dotPalette: [SKColor] = [
-            NSColor(calibratedHue: 0.54, saturation: 0.42, brightness: isDarkInterfaceActive ? 0.93 : 0.72, alpha: 1),
-            NSColor(calibratedHue: 0.31, saturation: 0.48, brightness: isDarkInterfaceActive ? 0.88 : 0.68, alpha: 1),
-            NSColor(calibratedHue: 0.03, saturation: 0.62, brightness: isDarkInterfaceActive ? 0.94 : 0.78, alpha: 1),
-        ]
-
-        let bgCr = max(10, min(18, 14 * s))
-        let bg = SKShapeNode(rectOf: CGSize(width: width, height: totalH), cornerRadius: bgCr)
-        bg.fillColor = palette.pillFill.withAlphaComponent(min(1, palette.pillFill.alphaComponent * 1.28))
-        bg.strokeColor = palette.panelStroke.withAlphaComponent(min(1, palette.panelStroke.alphaComponent * 1.08))
-        bg.lineWidth = max(0.75, min(1.5, s))
-        bg.position = .zero
-        root.addChild(bg)
-
-        let accentBar = SKShapeNode(rectOf: CGSize(width: max(2.25, 3 * s), height: max(26 * s, totalH - inset * 2)), cornerRadius: 1.5 * s)
-        accentBar.fillColor = palette.pillStrokeSelected.withAlphaComponent(0.5)
-        accentBar.strokeColor = .clear
-        accentBar.position = CGPoint(x: -width * 0.5 + inset + 1.5 * s, y: 0)
-        accentBar.zPosition = 0.5
-        root.addChild(accentBar)
-
-        let hairline = SKShapeNode(rectOf: CGSize(width: width - 26 * s, height: max(0.75, s * 0.85)), cornerRadius: 0)
-        hairline.fillColor = palette.panelStroke.withAlphaComponent(0.22)
-        hairline.strokeColor = .clear
-        hairline.position = CGPoint(x: 8 * s, y: totalH * 0.5 - inset - titleBlockH - 4 * s)
-        hairline.zPosition = 0.6
-        root.addChild(hairline)
-
-        let title = SKLabelNode(fontNamed: ".AppleSystemUIFontSemibold")
-        title.fontSize = titleFont
-        title.fontColor = palette.statusText
-        title.text = intro
-        title.horizontalAlignmentMode = .left
-        title.verticalAlignmentMode = .top
-        title.preferredMaxLayoutWidth = width - inset * 2 - 12 * s
-        title.numberOfLines = 0
-        title.position = CGPoint(x: -width * 0.5 + inset + 10 * s, y: totalH * 0.5 - inset)
-        title.zPosition = 1
-        root.addChild(title)
-
-        var cursorY = title.position.y - titleBlockH - 14 * s
-
-        if useRows {
-            for i in 0..<3 {
-                let dot = SKShapeNode(circleOfRadius: max(2.8, min(5.2, 3.5 * s)))
-                dot.fillColor = dotPalette[i]
-                dot.strokeColor = NSColor(calibratedWhite: 1, alpha: isDarkInterfaceActive ? 0.14 : 0.42)
-                dot.lineWidth = 0.5
-                dot.position = CGPoint(x: -width * 0.5 + inset + 9 * s, y: cursorY)
-                dot.zPosition = 1
-                root.addChild(dot)
-
-                let line = SKLabelNode(fontNamed: ".AppleSystemUIFont")
-                line.fontSize = rowFont
-                line.fontColor = palette.captionText.withAlphaComponent(0.94)
-                line.text = segments[i]
-                line.horizontalAlignmentMode = .left
-                line.verticalAlignmentMode = .center
-                line.position = CGPoint(x: -width * 0.5 + inset + 19 * s, y: cursorY)
-                line.preferredMaxLayoutWidth = width - inset * 2 - 26 * s
-                line.numberOfLines = 2
-                line.zPosition = 1
-                root.addChild(line)
-
-                cursorY -= rowSpacing
-            }
-        } else {
-            let body = SKLabelNode(fontNamed: ".AppleSystemUIFont")
-            body.fontSize = rowFont
-            body.fontColor = palette.captionText.withAlphaComponent(0.92)
-            body.text = rawDetails
-            body.horizontalAlignmentMode = .left
-            body.verticalAlignmentMode = .top
-            body.preferredMaxLayoutWidth = width - inset * 2 - 12 * s
-            body.numberOfLines = 0
-            body.position = CGPoint(x: -width * 0.5 + inset + 10 * s, y: cursorY)
-            body.zPosition = 1
-            root.addChild(body)
-        }
-
-        return (root, totalH)
-    }
-
-    /// EN: Two-line readable theme legend placed under the board.
-    /// RU: Двухстрочная читаемая легенда тем под игровым полем.
-    private func makeThemeUnlockLegendRow(width: CGFloat, layoutScale s: CGFloat) -> (node: SKNode, height: CGFloat) {
-        let root = SKNode()
-        root.name = "theme_unlock_legend_row_root"
-
-        let titleFont = max(10, min(13.5, 11.5 * s))
-        let detailsFont = max(9, min(12.5, 10.5 * s))
-        let vPad = max(6, min(11, 8 * s))
-        let lineGap = max(2, min(6, 3 * s))
-        let h = vPad * 2 + titleFont + lineGap + detailsFont
-
-        let cr = max(10, min(16, 12 * s))
-        let bg = SKShapeNode(rectOf: CGSize(width: width, height: h), cornerRadius: cr)
-        bg.fillColor = palette.pillFill.withAlphaComponent(min(1, palette.pillFill.alphaComponent * 1.18))
-        bg.strokeColor = palette.panelStroke.withAlphaComponent(min(1, palette.panelStroke.alphaComponent * 0.95))
-        bg.lineWidth = max(0.75, min(1.3, s))
-        bg.position = .zero
-        root.addChild(bg)
-
-        let title = SKLabelNode(fontNamed: ".AppleSystemUIFontSemibold")
-        title.fontSize = titleFont
-        title.fontColor = palette.captionText
-        title.text = L10n.themeUnlockIntro
-        title.horizontalAlignmentMode = .center
-        title.verticalAlignmentMode = .center
-        title.position = CGPoint(x: 0, y: (lineGap + detailsFont) * 0.5)
-        title.zPosition = 1
-        root.addChild(title)
-
-        let rawDetails = L10n.themeUnlockDetails
-        let segments = rawDetails
-            .split(whereSeparator: { $0 == "·" })
-            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-        let detailsText = segments.isEmpty ? rawDetails : segments.joined(separator: "   •   ")
-
-        let details = SKLabelNode(fontNamed: ".AppleSystemUIFontMedium")
-        details.fontSize = detailsFont
-        details.fontColor = palette.captionText.withAlphaComponent(0.9)
-        details.text = detailsText
-        details.horizontalAlignmentMode = .center
-        details.verticalAlignmentMode = .center
-        details.position = CGPoint(x: 0, y: -(lineGap + titleFont) * 0.5)
-        details.zPosition = 1
-        root.addChild(details)
-
-        return (root, h)
-    }
-
-    /// EN: Soft decorative auras behind the whole scene to add depth and warmth.
-    /// RU: Мягкие декоративные «ауры» в фоне сцены — добавляют глубину и теплоту.
-    private func addBackdropAuras() {
-        let darkMode = isDarkInterfaceActive
-        let topRadius = max(size.width, size.height) * 0.55
-        let bottomRadius = max(size.width, size.height) * 0.42
-
-        let topGlow = SKShapeNode(circleOfRadius: topRadius)
-        topGlow.fillColor = palette.pillStrokeSelected.withAlphaComponent(darkMode ? 0.16 : 0.12)
-        topGlow.strokeColor = .clear
-        topGlow.glowWidth = max(40, topRadius * 0.35)
-        topGlow.position = CGPoint(x: size.width * 0.32, y: size.height * 0.36)
-        topGlow.zPosition = Layer.backdropDecor
-        topGlow.alpha = 0.85
-        topGlow.blendMode = .add
-        addChild(topGlow)
-
-        let bottomGlow = SKShapeNode(circleOfRadius: bottomRadius)
-        bottomGlow.fillColor = palette.crossMark.withAlphaComponent(darkMode ? 0.10 : 0.07)
-        bottomGlow.strokeColor = .clear
-        bottomGlow.glowWidth = max(40, bottomRadius * 0.35)
-        bottomGlow.position = CGPoint(x: -size.width * 0.32, y: -size.height * 0.30)
-        bottomGlow.zPosition = Layer.backdropDecor
-        bottomGlow.alpha = 0.8
-        bottomGlow.blendMode = .add
-        addChild(bottomGlow)
-
-        let driftDuration: TimeInterval = 9.0
-        topGlow.run(SKAction.repeatForever(SKAction.sequence([
-            SKAction.moveBy(x: 14, y: -10, duration: driftDuration),
-            SKAction.moveBy(x: -14, y: 10, duration: driftDuration),
-        ])))
-        bottomGlow.run(SKAction.repeatForever(SKAction.sequence([
-            SKAction.moveBy(x: -10, y: 14, duration: driftDuration + 1.4),
-            SKAction.moveBy(x: 10, y: -14, duration: driftDuration + 1.4),
-        ])))
-    }
-
-    /// EN: Subtle fade-in for whole scene contents on rebuild.
-    /// RU: Мягкое появление содержимого сцены при перестроении.
-    private func playLayoutIntro() {
-        for child in children {
-            let base = child.alpha
-            child.alpha = 0
-            child.run(SKAction.fadeAlpha(to: base, duration: 0.22))
-        }
-    }
-
-    /// EN: Friendly heartbeat-style pulse on the New game button stroke.
-    /// RU: Дружелюбный «пульс» обводки кнопки «Новая игра».
-    private func animateNewGameButtonPulse() {
-        guard let btn = newGameButton else { return }
-        btn.removeAction(forKey: "newGamePulse")
-        let baseLW = btn.lineWidth
-        let pulse = SKAction.repeatForever(SKAction.sequence([
-            SKAction.customAction(withDuration: 1.05) { node, t in
-                guard let s = node as? SKShapeNode else { return }
-                let phase = sin(Double(t / 1.05) * .pi * 2)
-                s.lineWidth = baseLW * (1.0 + 0.18 * CGFloat(phase))
-            },
-            SKAction.customAction(withDuration: 1.05) { node, t in
-                guard let s = node as? SKShapeNode else { return }
-                let phase = sin(.pi + Double(t / 1.05) * .pi * 2)
-                s.lineWidth = baseLW * (1.0 + 0.18 * CGFloat(phase))
-            },
-        ]))
-        btn.run(pulse, withKey: "newGamePulse")
-    }
-
-    /// EN: Max label width inside frosted panel / RU: Макс. ширина текста внутри панели.
-    private func panelReadableWidth(panelHalfWidth: CGFloat, edgeMargin: CGFloat, layoutScale s: CGFloat) -> CGFloat {
-        let innerMargin = max(10, min(22, 14 * s))
-        return min(size.width - 2 * edgeMargin - innerMargin, panelHalfWidth * 2 + max(44, min(72, 56 * s)))
-    }
-
-    /// EN: Small muted label above pill groups / RU: Приглушённая подпись над группами кнопок
-    private func addSectionCaption(x: CGFloat, y: CGFloat, text: String, layoutScale s: CGFloat) {
-        let cap = SKLabelNode(fontNamed: ".AppleSystemUIFontMedium")
-        cap.fontSize = max(8.5, min(13.5, 10 * s))
-        cap.fontColor = palette.captionText.withAlphaComponent(0.94)
-        cap.text = text
-        cap.horizontalAlignmentMode = .center
-        // EN: Captions are positioned relative to the pills below; bottom alignment prevents descenders
-        // from visually overlapping the controls on large scales.
-        // RU: Подписи позиционируются относительно «пилюль» ниже; bottom-выравнивание убирает
-        // «хвосты» букв вниз и предотвращает визуальное налезание при большом масштабе.
-        cap.verticalAlignmentMode = .bottom
-        cap.position = CGPoint(x: x, y: y)
-        cap.zPosition = Layer.hud
-        addChild(cap)
-    }
-
-    /// EN: Hit-testable rounded HUD button; `_disabled` suffix when inactive so clicks ignore logically disabled picks.
-    /// RU: Кликабельная «пилюля» HUD; суффикс `_disabled` при неактивном варианте, чтобы клики не проходили.
-    private func makePill(
-        name: String,
-        title: String,
-        x: CGFloat,
-        y: CGFloat,
-        width: CGFloat,
-        height: CGFloat,
-        fontPoints: CGFloat,
-        layoutScale s: CGFloat,
-        selected: Bool,
-        enabled: Bool
-    ) {
-        // EN: Clamp font to pill height so labels never visually overlap adjacent pills on small heights.
-        // RU: Ограничиваем шрифт по высоте «пилюли», чтобы текст не вылезал и не наезжал на соседние кнопки.
-        let rawFontSize = max(8, min(17.5, fontPoints * s))
-        let heightBound = max(8, height * 0.62)
-        let fontSize = min(rawFontSize, heightBound)
-        let corner = max(6, min(13, 8 * s))
-        let shape = SKShapeNode(rectOf: CGSize(width: width, height: height), cornerRadius: corner)
-        shape.position = CGPoint(x: x, y: y)
-        shape.name = enabled ? name : "\(name)_disabled"
-        let lwBase = selected ? 2.25 : 1.15
-        shape.lineWidth = max(1, min(3.2, lwBase * s))
-        shape.strokeColor = enabled ? (selected ? palette.pillStrokeSelected : palette.pillStroke) : palette.pillTextDisabled
-        shape.fillColor = enabled ? (selected ? palette.pillFillSelected : palette.pillFill) : palette.pillFill.withAlphaComponent(0.22)
-        shape.zPosition = Layer.hud
-        shape.alpha = enabled ? 1 : 0.45
-
-        // EN: Soft glossy highlight on top half — adds tactility without contrast cost.
-        // RU: Лёгкий «блик» в верхней половине — делает кнопку «живой» без потери контраста.
-        if enabled {
-            let glossH = height * 0.46
-            let gloss = SKShapeNode(rectOf: CGSize(width: width - 4 * s, height: glossH), cornerRadius: max(4, corner - 2))
-            gloss.fillColor = NSColor(calibratedWhite: 1, alpha: isDarkInterfaceActive ? 0.05 : 0.18)
-            gloss.strokeColor = .clear
-            gloss.position = CGPoint(x: 0, y: height * 0.5 - glossH * 0.5 - 1.5 * s)
-            gloss.zPosition = 0.5
-            shape.addChild(gloss)
-        }
-
-        let label = SKLabelNode(fontNamed: ".AppleSystemUIFont")
-        label.name = enabled ? name : "\(name)_disabled"
-        label.fontSize = fontSize
-        label.fontColor = enabled ? palette.pillText : palette.pillTextDisabled
-        label.verticalAlignmentMode = .center
-        label.horizontalAlignmentMode = .center
-        label.text = title
-        shape.addChild(label)
-
-        // EN: Pop-in animation when newly drawn — gives the panel a friendlier feel.
-        // RU: Лёгкая «пружинка» при отрисовке — делает панель приятнее на старте.
-        if enabled {
-            shape.setScale(0.96)
-            shape.run(SKAction.sequence([
-                SKAction.scale(to: 1.03, duration: 0.10),
-                SKAction.scale(to: 1.00, duration: 0.08),
-            ]))
-        }
-
-        addChild(shape)
-    }
-
-    /// EN: Stable dictionary key for sprite lookup matching `SKNode.name` on cells / RU: Стабильный ключ словаря для спрайтов = `name` клетки
     private static func cellKey(row: Int, col: Int) -> String {
         "cell_\(row)_\(col)"
     }
@@ -1033,11 +567,11 @@ final class GameScene: SKScene {
     /// RU: Модель → спрайты (цвет символа, анимация хода), строка статуса, подсветка победы.
     private func syncUI(animateMarkAt placed: (row: Int, col: Int)? = nil) {
         let n = game.boardSize
-        let animatedKey: String? = placed.map { Self.cellKey(row: $0.row, col: $0.col) }
+        let animatedKey: String? = placed.map { GameSceneLayout.cellKey(row: $0.row, col: $0.col) }
 
         for row in 0..<n {
             for col in 0..<n {
-                let key = Self.cellKey(row: row, col: col)
+                let key = GameSceneLayout.cellKey(row: row, col: col)
                 let cell = game.cell(at: row, col: col)
                 let text = symbol(for: cell)
                 guard let mark = markNodes[key] else { continue }
@@ -1086,6 +620,7 @@ final class GameScene: SKScene {
 
         maybeRecordVsAIOutcome()
         updateStatsFooterText()
+        updateAccessibilitySummary()
     }
 
     /// EN: Persist win/loss/draw and streak once when a vs-AI round leaves `inProgress`.
@@ -1173,7 +708,7 @@ final class GameScene: SKScene {
         line.glowWidth = max(2, boardCellSide * 0.04)
         line.lineWidth = max(4, boardCellSide * 0.1)
         line.lineCap = .round
-        line.zPosition = Layer.winLine
+        line.zPosition = GameSceneLayer.winLine
         line.alpha = 0
         boardGrid.addChild(line)
         winHighlightLine = line
@@ -1334,7 +869,7 @@ final class GameScene: SKScene {
 
     /// EN: Clears board model + visuals, preserves rule toggles, restarts AI opening if needed.
     /// RU: Очищает модель и визуал, сохраняет переключатели правил, при необходимости снова запускает открытие ИИ.
-    private func restartRound() {
+    func restartRound() {
         bumpInputEpoch()
         roundOutcomeRecorded = false
         game.reset()
@@ -1348,117 +883,77 @@ final class GameScene: SKScene {
         applyAIMoveIfNeeded()
     }
 
+    func performMove(row: Int, col: Int) {
+        guard game.outcome() == .inProgress, isHumanTurn else { return }
+        do {
+            try game.play(at: row, col: col)
+            if game.outcome() == .inProgress {
+                GameSoundFX.shared.playMoveTap()
+            }
+            syncUI(animateMarkAt: (row, col))
+            applyAIMoveIfNeeded()
+        } catch {
+            GameSoundFX.shared.playInvalidMove()
+        }
+    }
+
+    func handleInputAction(_ action: GameInputAction) {
+        switch action {
+        case .newGame:
+            restartRound()
+        case .setBoardSize(let s):
+            guard s != boardSize else { return }
+            boardSize = s
+            if winLength > boardSize { winLength = boardSize }
+            applyBoardConfiguration()
+        case .setWinLength(let k):
+            guard k != winLength, k <= boardSize else { return }
+            winLength = k
+            applyBoardConfiguration()
+        case .setOpponentMode(let next):
+            guard next != opponentMode else { return }
+            opponentMode = next
+            applyBoardConfiguration()
+        case .toggleSound:
+            progress.soundEnabled.toggle()
+            GameSoundFX.shared.soundEffectsEnabled = progress.soundEnabled
+            GameProgressStore.save(progress)
+            if progress.soundEnabled { GameSoundFX.shared.playMoveTap() }
+            rebuildLayout()
+        case .setAIDifficulty(let d):
+            guard progress.aiDifficulty != d else { return }
+            progress.aiDifficulty = d
+            GameProgressStore.save(progress)
+            rebuildLayout()
+        case .setHumanPlayer(let p):
+            guard humanPlayer != p else { return }
+            humanPlayer = p
+            applyBoardConfiguration()
+        case .setTheme(let style):
+            guard progress.unlockedThemes.contains(style), progress.selectedTheme != style else { return }
+            progress.selectedTheme = style
+            GameProgressStore.save(progress)
+            rebuildLayout()
+        case .playCell(let row, let col):
+            keyboardFocusRow = row
+            keyboardFocusCol = col
+            refreshFocusRing()
+            performMove(row: row, col: col)
+        }
+    }
+
     /// EN: Hit-test stack resolves HUD pills first, then board cells; respects finished game + AI turn locks.
     /// RU: Стек попаданий: сначала HUD, затем клетки; учитывается конец партии и блокировка хода при очереди ИИ.
     override func mouseDown(with event: NSEvent) {
         let location = event.location(in: self)
         let hits = nodes(at: location)
-
-        if hits.contains(where: { $0.name == "newGame" }) {
-            restartRound()
-            return
-        }
-
-        for hit in hits {
-            guard let raw = hit.name else { continue }
-            let name = raw.replacingOccurrences(of: "_disabled", with: "")
-            if name.hasPrefix("board_"), let s = Int(name.dropFirst(6)), s != boardSize {
-                boardSize = s
-                if winLength > boardSize {
-                    winLength = boardSize
-                }
-                applyBoardConfiguration()
-                return
-            }
-            if name.hasPrefix("winlen_"), let k = Int(name.dropFirst(7)), k <= boardSize, k != winLength {
-                winLength = k
-                applyBoardConfiguration()
-                return
-            }
-            if name == "mode_human" || name == "mode_ai" {
-                let next: OpponentMode = name == "mode_human" ? .humanHuman : .humanComputer
-                if next != opponentMode {
-                    opponentMode = next
-                    applyBoardConfiguration()
-                }
-                return
-            }
-            if name == "sound_toggle" {
-                progress.soundEnabled.toggle()
-                GameSoundFX.shared.soundEffectsEnabled = progress.soundEnabled
-                GameProgressStore.save(progress)
-                if progress.soundEnabled {
-                    GameSoundFX.shared.playMoveTap()
-                }
-                rebuildLayout()
-                return
-            }
-            if opponentMode == .humanComputer {
-                if name == "ai_easy", progress.aiDifficulty != .easy {
-                    progress.aiDifficulty = .easy
-                    GameProgressStore.save(progress)
-                    rebuildLayout()
-                    return
-                }
-                if name == "ai_medium", progress.aiDifficulty != .medium {
-                    progress.aiDifficulty = .medium
-                    GameProgressStore.save(progress)
-                    rebuildLayout()
-                    return
-                }
-                if name == "ai_hard", progress.aiDifficulty != .hard {
-                    progress.aiDifficulty = .hard
-                    GameProgressStore.save(progress)
-                    rebuildLayout()
-                    return
-                }
-                if name == "pick_x", humanPlayer != .x {
-                    humanPlayer = .x
-                    applyBoardConfiguration()
-                    return
-                }
-                if name == "pick_o", humanPlayer != .o {
-                    humanPlayer = .o
-                    applyBoardConfiguration()
-                    return
-                }
-            }
-            if name.hasPrefix("theme_"),
-               let style = BoardVisualStyle(rawValue: String(name.dropFirst(6))),
-               progress.unlockedThemes.contains(style),
-               progress.selectedTheme != style {
-                progress.selectedTheme = style
-                GameProgressStore.save(progress)
-                rebuildLayout()
-                return
-            }
-        }
-
-        guard game.outcome() == .inProgress else { return }
-
-        if opponentMode == .humanComputer, game.currentPlayer != humanPlayer {
-            return
-        }
-
-        for node in hits {
-            guard let name = node.name, name.hasPrefix("cell_") else { continue }
-            let parts = name.dropFirst(5).split(separator: "_")
-            guard parts.count == 2,
-                  let row = Int(parts[0]),
-                  let col = Int(parts[1]) else { continue }
-
-            do {
-                try game.play(at: row, col: col)
-                if game.outcome() == .inProgress {
-                    GameSoundFX.shared.playMoveTap()
-                }
-                syncUI(animateMarkAt: (row, col))
-                applyAIMoveIfNeeded()
-            } catch {
-                GameSoundFX.shared.playInvalidMove()
-                break
-            }
-            return
-        }
+        guard let action = GameInputHandler.firstAction(
+            from: hits,
+            boardSize: boardSize,
+            opponentMode: opponentMode,
+            gameInProgress: game.outcome() == .inProgress,
+            isHumanTurn: isHumanTurn
+        ) else { return }
+        handleInputAction(action)
     }
 }

@@ -45,12 +45,26 @@ enum L10n {
     static var statsBest: String { String(localized: "game.stats.best") }
 
     static func statsLine(wins: Int, losses: Int, draws: Int, streak: Int, best: Int) -> String {
-        "\(statsVsAI) \(wins)-\(losses)-\(draws)  \(statsStreak) \(streak) (\(statsBest) \(best))"
+        String(format: String(localized: "game.stats.line"), wins, losses, draws, streak, best)
     }
 
     static var soundOn: String { String(localized: "game.sound.on") }
     static var soundOff: String { String(localized: "game.sound.off") }
 
     static var themeUnlockIntro: String { String(localized: "game.theme.unlock.intro") }
-    static var themeUnlockDetails: String { String(localized: "game.theme.unlock.details") }
+    static var themeUnlockAurora: String { String(localized: "game.theme.unlock.aurora") }
+    static var themeUnlockGrove: String { String(localized: "game.theme.unlock.grove") }
+    static var themeUnlockEmber: String { String(localized: "game.theme.unlock.ember") }
+
+    static var themeUnlockLegendDetails: String {
+        [themeUnlockAurora, themeUnlockGrove, themeUnlockEmber].joined(separator: "   •   ")
+    }
+
+    static var accessibilityCellPosition: String { String(localized: "accessibility.cell.position") }
+    static var accessibilityCellEmpty: String { String(localized: "accessibility.cell.empty") }
+    static var accessibilityCellCross: String { String(localized: "accessibility.cell.cross") }
+    static var accessibilityCellNought: String { String(localized: "accessibility.cell.nought") }
+    static var accessibilityFocus: String { String(localized: "accessibility.focus") }
+    static var accessibilityNewGame: String { String(localized: "accessibility.pill.new_game") }
+    static var accessibilityKeyboardHelp: String { String(localized: "accessibility.help.keyboard") }
 }

@@ -1,6 +1,6 @@
 import Foundation
 
-// EN: Persistent stats vs AI, streaks, unlocked themes, preferred difficulty — stored in UserDefaults.
+// EN: Persistent stats vs AI, streaks, unlocks, preferred difficulty — stored in UserDefaults.
 // RU: Постоянная статистика против ИИ, серии, разблокированные темы и сложность — UserDefaults.
 
 enum AIDifficulty: Int, Codable, CaseIterable, Sendable {
@@ -23,6 +23,14 @@ struct GameProgress: Codable, Equatable, Sendable {
     /// EN: Master switch for move/win/error UI sounds.
     /// RU: Общий переключатель звуков хода/победы/ошибки.
     var soundEnabled: Bool = true
+    /// EN: Last chosen opponent mode — restored on launch.
+    /// RU: Последний режим соперника — восстанавливается при запуске.
+    var opponentMode: OpponentMode = .humanHuman
+    var boardSize: Int = 3
+    var winLength: Int = 3
+    /// EN: Human side in vs-computer mode (`true` = crosses).
+    /// RU: Сторона человека против ИИ (`true` = крестики).
+    var humanPlaysAsX: Bool = true
 
     private enum CodingKeys: String, CodingKey {
         case winsVsAI
@@ -34,6 +42,10 @@ struct GameProgress: Codable, Equatable, Sendable {
         case selectedTheme
         case aiDifficulty
         case soundEnabled
+        case opponentMode
+        case boardSize
+        case winLength
+        case humanPlaysAsX
     }
 
     init(
@@ -45,7 +57,11 @@ struct GameProgress: Codable, Equatable, Sendable {
         unlockedThemes: Set<BoardVisualStyle> = [.classic],
         selectedTheme: BoardVisualStyle = .classic,
         aiDifficulty: AIDifficulty = .medium,
-        soundEnabled: Bool = true
+        soundEnabled: Bool = true,
+        opponentMode: OpponentMode = .humanHuman,
+        boardSize: Int = 3,
+        winLength: Int = 3,
+        humanPlaysAsX: Bool = true
     ) {
         self.winsVsAI = winsVsAI
         self.lossesVsAI = lossesVsAI
@@ -56,6 +72,10 @@ struct GameProgress: Codable, Equatable, Sendable {
         self.selectedTheme = selectedTheme
         self.aiDifficulty = aiDifficulty
         self.soundEnabled = soundEnabled
+        self.opponentMode = opponentMode
+        self.boardSize = Self.clampBoardSize(boardSize)
+        self.winLength = Self.clampWinLength(winLength, boardSize: self.boardSize)
+        self.humanPlaysAsX = humanPlaysAsX
     }
 
     init(from decoder: Decoder) throws {
@@ -69,6 +89,12 @@ struct GameProgress: Codable, Equatable, Sendable {
         selectedTheme = try c.decodeIfPresent(BoardVisualStyle.self, forKey: .selectedTheme) ?? .classic
         aiDifficulty = try c.decodeIfPresent(AIDifficulty.self, forKey: .aiDifficulty) ?? .medium
         soundEnabled = try c.decodeIfPresent(Bool.self, forKey: .soundEnabled) ?? true
+        opponentMode = try c.decodeIfPresent(OpponentMode.self, forKey: .opponentMode) ?? .humanHuman
+        let rawBoard = try c.decodeIfPresent(Int.self, forKey: .boardSize) ?? 3
+        boardSize = Self.clampBoardSize(rawBoard)
+        let rawWin = try c.decodeIfPresent(Int.self, forKey: .winLength) ?? 3
+        winLength = Self.clampWinLength(rawWin, boardSize: boardSize)
+        humanPlaysAsX = try c.decodeIfPresent(Bool.self, forKey: .humanPlaysAsX) ?? true
     }
 
     func encode(to encoder: Encoder) throws {
@@ -82,6 +108,35 @@ struct GameProgress: Codable, Equatable, Sendable {
         try c.encode(selectedTheme, forKey: .selectedTheme)
         try c.encode(aiDifficulty, forKey: .aiDifficulty)
         try c.encode(soundEnabled, forKey: .soundEnabled)
+        try c.encode(opponentMode, forKey: .opponentMode)
+        try c.encode(boardSize, forKey: .boardSize)
+        try c.encode(winLength, forKey: .winLength)
+        try c.encode(humanPlaysAsX, forKey: .humanPlaysAsX)
+    }
+
+    var humanPlayer: Player {
+        humanPlaysAsX ? .x : .o
+    }
+
+    mutating func setHumanPlayer(_ player: Player) {
+        humanPlaysAsX = player == .x
+    }
+
+    mutating func setBoardSize(_ size: Int) {
+        boardSize = Self.clampBoardSize(size)
+        winLength = Self.clampWinLength(winLength, boardSize: boardSize)
+    }
+
+    mutating func setWinLength(_ length: Int) {
+        winLength = Self.clampWinLength(length, boardSize: boardSize)
+    }
+
+    private static func clampBoardSize(_ size: Int) -> Int {
+        min(6, max(3, size))
+    }
+
+    private static func clampWinLength(_ length: Int, boardSize: Int) -> Int {
+        min(boardSize, max(3, min(6, length)))
     }
 
     mutating func applyVsAIOutcome(humanWon: Bool?) {
@@ -122,6 +177,9 @@ enum GameProgressStore {
         do {
             return try JSONDecoder().decode(GameProgress.self, from: data)
         } catch {
+            #if DEBUG
+            print("GameProgressStore: decode failed — \(error.localizedDescription)")
+            #endif
             return GameProgress()
         }
     }
@@ -131,8 +189,9 @@ enum GameProgressStore {
             let data = try JSONEncoder().encode(progress)
             UserDefaults.standard.set(data, forKey: key)
         } catch {
-            // EN: Ignore persistence failures — gameplay stays usable.
-            // RU: Игнорируем ошибки сохранения — игра остаётся рабочей.
+            #if DEBUG
+            print("GameProgressStore: encode failed — \(error.localizedDescription)")
+            #endif
         }
     }
 }

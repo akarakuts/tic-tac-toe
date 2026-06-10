@@ -93,40 +93,19 @@ struct GameModel: Equatable, Sendable {
         return cells[row * boardSize + col]
     }
 
+    /// EN: Precomputed win segments — shared by outcome checks and AI heuristics.
+    /// RU: Предвычисленные выигрышные отрезки — для проверки исхода и эвристик ИИ.
+    var lineSegments: [[Int]] { winLines }
+
     /// EN: First winning line found (for UI highlight); nil if no winner.
     /// RU: Первая найденная выигрышная линия (для подсветки в UI); nil если победителя нет.
     func winningLineIndices() -> [Int]? {
-        for line in winLines {
-            let a = cells[line[0]]
-            guard case .occupied = a else { continue }
-            var allMatch = true
-            for idx in line.dropFirst() {
-                if cells[idx] != a {
-                    allMatch = false
-                    break
-                }
-            }
-            if allMatch {
-                return line
-            }
-        }
-        return nil
+        firstWinningLine()?.indices
     }
 
     func outcome() -> GameOutcome {
-        for line in winLines {
-            let a = cells[line[0]]
-            guard case let .occupied(p) = a else { continue }
-            var win = true
-            for idx in line.dropFirst() {
-                if cells[idx] != a {
-                    win = false
-                    break
-                }
-            }
-            if win {
-                return .win(p)
-            }
+        if let win = firstWinningLine() {
+            return .win(win.player)
         }
         if cells.allSatisfy({
             if case .empty = $0 { return false }
@@ -135,6 +114,26 @@ struct GameModel: Equatable, Sendable {
             return .draw
         }
         return .inProgress
+    }
+
+    /// EN: First complete occupied segment on the board, if any.
+    /// RU: Первый полностью занятый выигрышный отрезок на поле, если есть.
+    private func firstWinningLine() -> (player: Player, indices: [Int])? {
+        for line in winLines {
+            let a = cells[line[0]]
+            guard case let .occupied(p) = a else { continue }
+            var allMatch = true
+            for idx in line.dropFirst() {
+                if cells[idx] != a {
+                    allMatch = false
+                    break
+                }
+            }
+            if allMatch {
+                return (p, line)
+            }
+        }
+        return nil
     }
 
     /// EN: Places current player's mark; switches player only while the game stays in progress (after win, turn freezes).

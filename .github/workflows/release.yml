@@ -24,6 +24,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Unit tests
+        run: |
+          xcodebuild \
+            -scheme "tic-tac-toe" \
+            -project "tic-tac-toe.xcodeproj" \
+            -destination 'platform=macOS' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            -only-testing:tic-tac-toeTests \
+            test
+
       - name: Build Release (no code signing)
         run: |
           set -euo pipefail

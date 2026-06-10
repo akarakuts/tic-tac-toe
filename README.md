@@ -27,6 +27,8 @@ A native **macOS** tic-tac-toe (n-in-a-row on a square grid) built with **Sprite
   - Unlocks apply only to finished games **vs computer**: **Aurora** after your **first** win vs AI; **Grove** after **5** cumulative wins vs AI; **Ember** after a **best win streak** of **3** (current streak resets on loss or draw). A short unlock legend is shown **under the board**.
 - **Statistics** — footer line with **W–L–D** vs AI, **current streak**, and **best streak**; updated when a vs-AI round ends. Stored with other progress in **UserDefaults**.
 - **Sound** — optional move / win / error feedback (`GameSoundFX`); **Sound on/off** toggle is persisted.
+- **Saved settings** — opponent mode, board size, win line length, and your side (✕/○) in vs-computer mode are restored on launch (`GameProgress`).
+- **Keyboard & accessibility** — arrow keys move focus, Return plays, ⌘N starts a new game; VoiceOver gets status announcements and an SKView summary.
 - **Layout** — controls live in a **left column** (labels above pill groups); the **grid** uses the remaining area. HUD and the left panel scale with the window, and the theme unlock legend sits **under the board**.
 - **Localization** — UI strings live in **`Localizable.xcstrings`** (String Catalog): **40 locale identifiers** aligned with typical macOS language choices (including regional variants such as `en-GB`, `es-419`, `fr-CA`). The running app follows the **system language**.
 - **Polish** — Animated marks, highlighted winning line, light feedback on draws and outcomes.
@@ -68,7 +70,14 @@ Core rules are covered in `GameModel` tests; AI behaviour (including non–3×3 
 |------|------|
 | `tic-tac-toe/GameModel.swift` | Board state, moves, dynamic win-line detection |
 | `tic-tac-toe/TicTacToeAI.swift` | Minimax AI, difficulty caps, tactical win/block moves |
-| `tic-tac-toe/GameScene.swift` | SpriteKit scene: layout, grid, input, HUD, theme/stat controls |
+| `tic-tac-toe/GameScene.swift` | SpriteKit scene coordinator: layout orchestration, game loop, AI |
+| `tic-tac-toe/GameScene+HUD.swift` | Left panel HUD builders (pills, stats, legend) |
+| `tic-tac-toe/GameScene+Keyboard.swift` | Keyboard focus ring and VoiceOver helpers |
+| `tic-tac-toe/BoardRenderer.swift` | Board grid geometry and cell sprites |
+| `tic-tac-toe/GameInputHandler.swift` | Mouse hit-test → game actions |
+| `tic-tac-toe/GameAccessibility.swift` | VoiceOver announcements and cell labels |
+| `tic-tac-toe/GameSceneLayout.swift` | Z-order layers and cell key helpers |
+| `tic-tac-toe/TicTacToeAIRandomness.swift` | Injectable RNG for AI difficulty (tests) |
 | `tic-tac-toe/GameProgress.swift` | Persisted stats, streaks, unlocks, difficulty, sound flag |
 | `tic-tac-toe/BoardAppearance.swift` | `BoardVisualStyle`, palettes for themes |
 | `tic-tac-toe/GameSoundFX.swift` | Optional AVFoundation UI sounds |

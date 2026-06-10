@@ -1,6 +1,10 @@
 import Testing
 @testable import tic_tac_toe
 
+extension Tag {
+    @Tag static var slow: Tag
+}
+
 // EN: Unit tests for `GameModel` rules and `TicTacToeAI` behaviour (Swift Testing).
 // RU: Юнит-тесты правил `GameModel` и поведения `TicTacToeAI` (Swift Testing).
 
@@ -205,7 +209,7 @@ struct TicTacToeAITests {
         #expect(TicTacToeAI.bestMove(for: .o, in: game) == nil)
     }
 
-    @Test func ai_returnsLegalMove_onFourByFour() throws {
+    @Test(.tags(.slow)) func ai_returnsLegalMove_onFourByFour() throws {
         var game = GameModel(boardSize: 4, winLength: 3)
         try game.play(at: 1, col: 1)
         let move = TicTacToeAI.bestMove(for: .o, in: game)
@@ -214,5 +218,23 @@ struct TicTacToeAITests {
         var next = game
         try next.play(at: m.row, col: m.col)
         #expect(next.cell(at: m.row, col: m.col) == .occupied(.o))
+    }
+
+    @Test func ai_easyMaySkipBlock_withSeededRandomness() throws {
+        var game = GameModel()
+        try game.play(at: 0, col: 0)
+        try game.play(at: 1, col: 1)
+        try game.play(at: 0, col: 1)
+        let rng = TicTacToeAIRandomness.seeded(units: [0.99, 0.99], indices: [0])
+        let move = TicTacToeAI.bestMove(for: .o, in: game, difficulty: .easy, randomness: rng)
+        #expect(move != nil)
+    }
+
+    @Test func ai_hardOpensWithStrongMove_onEmptyThreeByThree() throws {
+        let game = GameModel()
+        let move = try #require(TicTacToeAI.bestMove(for: .x, in: game, difficulty: .hard))
+        let isCenter = move.row == 1 && move.col == 1
+        let isCorner = (move.row == 0 || move.row == 2) && (move.col == 0 || move.col == 2)
+        #expect(isCenter || isCorner)
     }
 }
